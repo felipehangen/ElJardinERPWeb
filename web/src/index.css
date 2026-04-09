@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-jardin-primary: #166534;
+  --color-jardin-secondary: #15803d;
+  --color-jardin-accent: #facc15;
+  --color-jardin-bg: #f3f4f6;
+  --color-jardin-text: #1f2937;
+}
+
+/* Custom Base Styles */
+@layer base {
+  body {
+    background-color: var(--color-jardin-bg);
+    color: var(--color-jardin-text);
+  }
+
+  /* Remove spinner arrows from all number inputs */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}

@@ -1,0 +1,37 @@
+1. Building Vite project...
+
+> web@0.0.1 build
+> tsc -b && vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 1719 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:  0.29 kB
+dist/assets/index-DSYm-unC.css   32.68 kB │ gzip:  6.60 kB
+dist/assets/index-YU2jJ1QC.js   290.99 kB │ gzip: 86.80 kB
+✓ built in 1.04s
+2. Packaging unpacked app...
+  • electron-builder  version=26.4.0 os=25.2.0
+  • loaded configuration  file=package.json ("build" field)
+  • executing @electron/rebuild  electronVersion=40.0.0 arch=arm64 buildFromSource=false workspaceRoot=/Users/felipe/Library/CloudStorage/Dropbox/DOCUMENTOS/PERSONAL/PROYECTOS/Programas/JardinERP/web projectDir=./ appDir=./
+  • installing native dependencies  arch=arm64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=arm64 electron=40.0.0 appOutDir=dist-electron/mac-arm64
+  • cannot find path for dependency  name=undefined reference=undefined
+  • skipped macOS code signing  reason=identity explicitly is set to null
+  • arm64 requires signing, but identity is set to null and signing is being skipped
+3. Copying to /tmp/jardin_erp_build to escape Dropbox...
+4. Cleaning xattrs from /tmp/jardin_erp_build/El Jardin ERP.app (Aggressive)...
+5. Manual Ad-Hoc Signing in /tmp...
+/tmp/jardin_erp_build/El Jardin ERP.app: replacing existing signature
+6. Packaging into DMG/ZIP from /tmp...
+Running electron-builder with --prepackaged...
+  • electron-builder  version=26.4.0 os=25.2.0
+  • loaded configuration  file=package.json ("build" field)
+  • building        target=macOS zip arch=arm64 file=dist-electron/El Jardin ERP-0.0.1-arm64-mac.zip
+  • building        target=DMG arch=arm64 file=dist-electron/El Jardin ERP-0.0.1-arm64.dmg
+  • building block map  blockMapFile=dist-electron/El Jardin ERP-0.0.1-arm64.dmg.blockmap
+  • building block map  blockMapFile=dist-electron/El Jardin ERP-0.0.1-arm64-mac.zip.blockmap
+Build complete!

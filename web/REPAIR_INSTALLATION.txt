@@ -1,0 +1,8 @@
+Si al abrir El Jardin ERP aparece un mensaje diciendo que "está dañado", copia y pega el siguiente comando en tu Terminal y presiona Enter:
+
+xattr -d com.apple.quarantine "/Applications/El Jardin ERP.app"
+
+---
+If you see a "damaged" message when opening the app, copy and paste the following command into your Terminal and press Enter:
+
+xattr -d com.apple.quarantine "/Applications/El Jardin ERP.app"

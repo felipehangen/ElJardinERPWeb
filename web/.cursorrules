@@ -1,0 +1,39 @@
+# El Jardín ERP - Reglas y Mejores Prácticas
+
+## 1. Migración de Base de Datos (Zustand)
+La aplicación almacena la base de datos completa del usuario (inventario, transacciones, etc.) en local mediante `zustand/middleware` persistente. 
+Para asegurar que los usuarios no pierdan su información ni sufran errores (crashes) al descargar nuevas versiones de la aplicación con estructuras de datos modificadas, es **OBLIGATORIO** utilizar el sistema de migración.
+
+### Regla:
+**Siempre que alteres los tipos de datos modelo en `src/types/index.ts`** (por ejemplo, añadiendo un campo obligatorio a una factura, un nuevo estado a una transacción, etc.):
+1. Ve a `web/src/store/useStore.ts`.
+2. Incrementa en `1` la propiedad `version` del helper `persist`.
+3. Añade un bloque `if (version === X)` en la función `migrate`.
+4. Transforma/muta el `persistedState` antiguo para inyectarle el nuevo formato, rellenando con valores por defecto.
+5. NO borres las migraciones antiguas. Las migraciones actúan en cadena y un usuario con una versión muy vieja recorrerá el historial pasito a pasito.
+
+#### Ejemplo de Refactor:
+```typescript
+{
+    name: 'jardin-erp-storage-v4',
+    storage: createJSONStorage(() => localStorage),
+    version: 2, // Se incrementó de 1 a 2
+    migrate: (persistedState: any, version: number) => {
+        let state = { ...persistedState };
+
+        if (version === 1) { // Si el usuario tiene la estructura v1
+            // Refactor local: Todas las transacciones ahora exigen `category`
+            state.transactions = state.transactions.map((tx: any) => ({
+                ...tx,
+                category: tx.category || 'General' // Valor default para datos viejos
+            }));
+        }
+
+        return state;
+    }
+}
+```
+
+## 2. Componentes de UI
+- Favorece siempre el uso de componentes genéricos (e.g., `<Button>`, `<Modal>`, `<Input>`) definidos en `src/components/ui`.
+- Mantén el diseño estéticamente coherente con estilos "Vanilla CSS" + Tailwind: verdes oscuros (`emerald-700`, `jardin-primary`), fondos claros (`gray-50`) y esquinas rendondeadas prominentes (`rounded-xl` o `rounded-2xl`).
