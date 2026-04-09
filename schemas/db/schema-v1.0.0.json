@@ -1,0 +1,215 @@
+{
+    "_metadata": {
+        "version": "1.0.0",
+        "date": "2026-02-04T00:00:00-06:00",
+        "description": "El Jardin ERP Database Schema - Original v1.0.0 release"
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "DatabaseSchema",
+    "description": "Root state representing the entire local database structure of El Jardin ERP",
+    "type": "object",
+    "properties": {
+        "initialized": {
+            "type": "boolean"
+        },
+        "accounts": {
+            "$ref": "#/definitions/Accounts"
+        },
+        "inventory": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/InventoryItem"
+            }
+        },
+        "products": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Product"
+            }
+        },
+        "providers": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Provider"
+            }
+        },
+        "expenseTypes": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/ExpenseType"
+            }
+        },
+        "transactions": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Transaction"
+            }
+        }
+    },
+    "required": [
+        "initialized",
+        "accounts",
+        "inventory",
+        "products",
+        "providers",
+        "expenseTypes",
+        "transactions"
+    ],
+    "definitions": {
+        "Accounts": {
+            "type": "object",
+            "properties": {
+                "caja_chica": {
+                    "type": "number"
+                },
+                "banco": {
+                    "type": "number"
+                },
+                "inventario": {
+                    "type": "number",
+                    "description": "Sum of InventoryItem cost * stock"
+                },
+                "activo_fijo": {
+                    "type": "number",
+                    "description": "Sum of AssetItem cost"
+                },
+                "patrimonio": {
+                    "type": "number",
+                    "description": "Capital Social = Initial Assets - Initial Liabilities (0)"
+                },
+                "ventas": {
+                    "type": "number"
+                },
+                "costos": {
+                    "type": "number"
+                },
+                "gastos": {
+                    "type": "number"
+                },
+                "_isLedger": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "caja_chica",
+                "banco",
+                "inventario",
+                "activo_fijo",
+                "patrimonio"
+            ]
+        },
+        "InventoryItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "\"Leche 2L\""
+                },
+                "cost": {
+                    "type": "number",
+                    "description": "Standard/reference cost per unit"
+                },
+                "stock": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "cost",
+                "stock"
+            ]
+        },
+        "Product": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "price"
+            ]
+        },
+        "Provider": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id",
+                "name"
+            ]
+        },
+        "ExpenseType": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "\"Luz\", \"Agua\""
+                }
+            },
+            "required": [
+                "id",
+                "name"
+            ]
+        },
+        "Transaction": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "PURCHASE",
+                        "SALE",
+                        "EXPENSE",
+                        "ADJUSTMENT",
+                        "PRODUCTION",
+                        "INITIALIZATION"
+                    ]
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "object"
+                }
+            },
+            "required": [
+                "id",
+                "date",
+                "type",
+                "amount",
+                "description"
+            ]
+        }
+    }
+}

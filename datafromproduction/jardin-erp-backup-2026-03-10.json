@@ -1,0 +1,3909 @@
+{
+  "_metadata": {
+    "appVersion": "1.0.0",
+    "dbVersion": 1,
+    "exportDate": "2026-03-10T17:31:36.324Z"
+  },
+  "initialized": true,
+  "accounts": {
+    "caja_chica": 169967,
+    "banco": 161961.16999999998,
+    "inventario": 345519.12,
+    "activo_fijo": 379503,
+    "patrimonio": 1006830.29,
+    "_isLedger": true
+  },
+  "inventory": [
+    {
+      "id": "b3d03b94-c993-46da-91b4-e848f6843d29",
+      "name": "Helado de coco (unidad)",
+      "cost": 239.55357142857142,
+      "stock": 28,
+      "batches": [
+        {
+          "id": "legacy-23a9c321-7033-4874-b417-03631c6d021c",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 400,
+          "stock": 12
+        },
+        {
+          "id": "a181602d-8d99-4c49-8473-90a8e40b22ed",
+          "date": "2026-03-02T17:25:35.049Z",
+          "stock": 16,
+          "cost": 119.21875
+        }
+      ]
+    },
+    {
+      "id": "d5752f1b-8979-4ced-ab8c-a48d7a08f2c1",
+      "name": "Paleta cero (unidad)",
+      "cost": 909.6111111111111,
+      "stock": 18,
+      "batches": [
+        {
+          "id": "legacy-77d81c92-dc97-4cb7-a62b-c04557110913",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 597,
+          "stock": 6
+        },
+        {
+          "id": "931123e4-12f5-498c-9c85-3fa1265369a7",
+          "date": "2026-03-07T12:23:43.347Z",
+          "stock": 1,
+          "cost": 7163
+        },
+        {
+          "id": "2710ae56-c526-494e-b6ee-f0bb4ea4ce28",
+          "date": "2026-03-07T12:25:06.264Z",
+          "stock": 12,
+          "cost": 596.9166666666666
+        }
+      ]
+    },
+    {
+      "id": "e08158e1-307c-4cb2-b353-31e69bf7d86c",
+      "name": "Coca Cola Zero 250 mL (botella)",
+      "cost": 219.0909090909091,
+      "stock": 44,
+      "batches": [
+        {
+          "id": "legacy-d2a9a045-3dbc-4a91-a42d-6bd629d3f5a2",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 220,
+          "stock": 20
+        },
+        {
+          "id": "43d7fa43-b3c7-4567-bd1f-09d8c4fc7a5c",
+          "date": "2026-03-07T12:58:42.757Z",
+          "stock": 24,
+          "cost": 218.33333333333334
+        }
+      ]
+    },
+    {
+      "id": "8c5c0c57-1982-4f21-a87a-c8e46a2fd1bb",
+      "name": "Coca Cola 250 mL (botella)",
+      "cost": 273.3,
+      "stock": 20
+    },
+    {
+      "id": "248d93b4-4b61-4501-b58f-efd82cb7cc7c",
+      "name": "Gin 250 mL (botella)",
+      "cost": 270,
+      "stock": 21
+    },
+    {
+      "id": "398551c8-c01a-4c25-add9-d3940d75700f",
+      "name": "Té blanco 250 mL (botella)",
+      "cost": 299,
+      "stock": 22,
+      "batches": [
+        {
+          "id": "legacy-78880803-30c3-473a-8cf8-fe979142ee16",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 299,
+          "stock": 7
+        },
+        {
+          "id": "586664b9-4365-4910-b8ab-86ab0c40b33c",
+          "date": "2026-03-07T12:19:57.065Z",
+          "stock": 15,
+          "cost": 299
+        }
+      ]
+    },
+    {
+      "id": "73a19db5-a9ed-4239-b5d8-962b8fd2ce8c",
+      "name": "Té melocotón 250 mL (botella)",
+      "cost": 299,
+      "stock": 11
+    },
+    {
+      "id": "fb53c7c5-36b9-46eb-af57-8f297b093e69",
+      "name": "Jugo de naranja 1 L (caja)",
+      "cost": 1166,
+      "stock": 2
+    },
+    {
+      "id": "092692a5-450e-4a5b-ae63-d98ac2ac95c8",
+      "name": "Fresco leche fresa 1 L (caja)",
+      "cost": 1414,
+      "stock": 2
+    },
+    {
+      "id": "4614b82d-fc9a-4483-bbdc-e4f5eafa07ab",
+      "name": "Leche normal 1 L (caja)",
+      "cost": 749,
+      "stock": 21,
+      "batches": [
+        {
+          "id": "legacy-da0479d7-4198-4b80-9821-d7651854159d",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 749,
+          "stock": 9
+        },
+        {
+          "id": "f054ddf9-1069-4e84-a169-71defd3e47f1",
+          "date": "2026-03-07T12:22:34.381Z",
+          "stock": 12,
+          "cost": 749
+        }
+      ]
+    },
+    {
+      "id": "cb557e5e-6c38-4471-ad64-bb65efa9f0a9",
+      "name": "Leche Delactomy 1 L (caja)",
+      "cost": 1077.4,
+      "stock": 15,
+      "batches": [
+        {
+          "id": "legacy-95da9b03-5b85-4b95-85eb-1b8f35eac459",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1051,
+          "stock": 3
+        },
+        {
+          "id": "68af185c-7afa-4585-849f-aaea5909eee5",
+          "date": "2026-03-07T12:30:39.213Z",
+          "stock": 12,
+          "cost": 1084
+        }
+      ]
+    },
+    {
+      "id": "ad4ce46b-7350-4b9c-8cc8-6db05467b415",
+      "name": "Natilla Delactomy (unidad)",
+      "cost": 1422,
+      "stock": 1
+    },
+    {
+      "id": "dd3add43-34d6-4a6e-bdfe-4bdc88714342",
+      "name": "Natilla Dos Pinos (unidad)",
+      "cost": 1271,
+      "stock": 1
+    },
+    {
+      "id": "6f78cc7a-2053-485b-bcce-d1efdddf44d9",
+      "name": "Vinagre Limpieza (galón)",
+      "cost": 1400,
+      "stock": 1
+    },
+    {
+      "id": "f6cd2ece-156e-4c2a-94e5-fd3d8f46ae1e",
+      "name": "Sirope (botella 700 mL)",
+      "cost": 740,
+      "stock": 0.75,
+      "batches": [
+        {
+          "id": "legacy-9de47d6d-8e90-41ee-bda8-6e64c8d5f110",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 740,
+          "stock": 0.75
+        }
+      ]
+    },
+    {
+      "id": "a07fa9f7-ab33-4632-866f-e992342abc2d",
+      "name": "Sirope (galón 3700 mL)",
+      "cost": 4000,
+      "stock": 1
+    },
+    {
+      "id": "9a06dc75-f43a-4f29-a869-09d063a780a5",
+      "name": "Helado fresa-vainilla-limón (1/2 gal)",
+      "cost": 3939,
+      "stock": 0.5
+    },
+    {
+      "id": "736939ee-2693-40a6-92aa-8c7eba321843",
+      "name": "Helado crema chips (1/2 gal)",
+      "cost": 3939,
+      "stock": 0.5
+    },
+    {
+      "id": "ce9cba9c-2e03-42e2-ad29-f5584905f0b1",
+      "name": "Leche Pinito entera 800 g (paquete)",
+      "cost": 4840,
+      "stock": 1
+    },
+    {
+      "id": "250e1740-2020-47b5-af82-0adbeec01b2e",
+      "name": "Leche condensada La Lechera (paquete)",
+      "cost": 1510,
+      "stock": 1
+    },
+    {
+      "id": "481e5f77-a852-438d-9350-2e8482388f27",
+      "name": "Helado vainilla (2,5 gal)",
+      "cost": 16145,
+      "stock": 0.2
+    },
+    {
+      "id": "d67c406b-d212-47a2-bf3a-5c8fef6b356b",
+      "name": "Fresas (caja)",
+      "cost": 1800,
+      "stock": 1
+    },
+    {
+      "id": "6ae0bd9b-5a54-4adf-bca1-d241578d055b",
+      "name": "Sirope de chocolate (botella)",
+      "cost": 2240,
+      "stock": 0.5
+    },
+    {
+      "id": "f51fd2cf-225f-4a83-bcb7-75e21847e9af",
+      "name": "Aceite canola spray GV (botella)",
+      "cost": 2100,
+      "stock": 0.5
+    },
+    {
+      "id": "bde1d2af-c45b-4647-90b0-36cfa7c93756",
+      "name": "Nutella (vaso)",
+      "cost": 4850,
+      "stock": 3
+    },
+    {
+      "id": "edaea111-7ee9-4784-beb5-250871336a49",
+      "name": "Tortillas Las Perseguidas (paquete)",
+      "cost": 1309,
+      "stock": 25
+    },
+    {
+      "id": "293d6b6b-7579-4ea7-931f-fe10cc2a8a88",
+      "name": "Cocoa dulce en polvo Harricks (paquete 1 kg)",
+      "cost": 3590,
+      "stock": 0.75
+    },
+    {
+      "id": "8cba9162-a175-49d6-9ead-e054e88699a5",
+      "name": "Confitura de colores Cordillera (paquete)",
+      "cost": 2990,
+      "stock": 1
+    },
+    {
+      "id": "fe50774b-4824-4554-a93d-e0619375021b",
+      "name": "Azúcar Doña María (paquete 100 sobres)",
+      "cost": 757.1244635193134,
+      "stock": 2.33,
+      "batches": [
+        {
+          "id": "legacy-e2e79011-d157-4d85-89c1-85b6697067c2",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 770,
+          "stock": 1.33
+        },
+        {
+          "id": "c8a5bade-a4bd-4a91-83b7-7c00b1097b4f",
+          "date": "2026-03-07T13:00:33.440Z",
+          "stock": 1,
+          "cost": 740
+        }
+      ]
+    },
+    {
+      "id": "4bb9bc65-aed8-41ea-a376-b168fe598524",
+      "name": "Café grande (paquete 500 g)",
+      "cost": 3800,
+      "stock": 1
+    },
+    {
+      "id": "6ed63b90-5da6-4b4e-b4c9-27b6df8bf981",
+      "name": "Café pequeño (paquete 250 g)",
+      "cost": 2083,
+      "stock": 9.25
+    },
+    {
+      "id": "9aca7277-3cbf-42f8-a886-d5c707d9c713",
+      "name": "Sal (vaso)",
+      "cost": 410,
+      "stock": 2
+    },
+    {
+      "id": "c9bd42b9-df1a-4ec1-b8ab-ccb44baab22e",
+      "name": "Canela (vaso)",
+      "cost": 990,
+      "stock": 2
+    },
+    {
+      "id": "d6f2772b-e232-43f9-bb8e-2db023761285",
+      "name": "Piña de tamales (unidad)",
+      "cost": 1300,
+      "stock": 3
+    },
+    {
+      "id": "a586964b-26eb-4d15-99c0-8e2e8539e658",
+      "name": "Salchichón (porción)",
+      "cost": 311,
+      "stock": 15
+    },
+    {
+      "id": "9b99e2ab-88e9-43d8-b9ca-c37636af50a2",
+      "name": "Salchichón con chile (porción)",
+      "cost": 336.90909090909093,
+      "stock": 11,
+      "batches": [
+        {
+          "id": "legacy-2a6adf4b-307e-4caa-af7d-1fd83f6b95cb",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 311,
+          "stock": 6
+        },
+        {
+          "id": "b26e43ae-7bdc-4843-996c-24acaba886c7",
+          "date": "2026-03-07T13:04:36.758Z",
+          "stock": 5,
+          "cost": 368
+        }
+      ]
+    },
+    {
+      "id": "0c8381a4-4682-4adc-aa2c-e4d7ad74892a",
+      "name": "Banano (unidad)",
+      "cost": 50,
+      "stock": 12,
+      "batches": [
+        {
+          "id": "legacy-c4e4ed8d-60fd-49ce-9592-4fd2b7c3a93a",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 50,
+          "stock": 5
+        },
+        {
+          "id": "2a3777c9-0250-4c97-a8c6-0837c9054450",
+          "date": "2026-03-05T00:41:59.682Z",
+          "stock": 7,
+          "cost": 50
+        }
+      ]
+    },
+    {
+      "id": "53d00b86-1714-4842-a9fd-19e08cb2d1e7",
+      "name": "Mayonesa (bolsa 1 kg)",
+      "cost": 2000,
+      "stock": 1
+    },
+    {
+      "id": "d423f8af-f139-4fad-821b-92e57b46cb27",
+      "name": "Tortillas Tortirricas (paquete 30 unidades)",
+      "cost": 1700,
+      "stock": 1
+    },
+    {
+      "id": "6e931674-c4f5-4cf0-87e9-3ed4bbd75e69",
+      "name": "Queso (kg)",
+      "cost": 3500,
+      "stock": 0.5
+    },
+    {
+      "id": "9ae54cdc-2e52-40df-a92b-f0f677df5fda",
+      "name": "Tapa de dulce (unidad)",
+      "cost": 800,
+      "stock": 1
+    },
+    {
+      "id": "c790a0cb-cccf-45d5-a69b-3dc5c675c093",
+      "name": "Pechuga de pollo cocinada (unidad)",
+      "cost": 2800,
+      "stock": 2,
+      "batches": [
+        {
+          "id": "legacy-9321a55b-895e-4e9b-bc43-c579a4e73161",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 2800,
+          "stock": 1
+        },
+        {
+          "id": "b689b81d-e6be-4289-b4ca-dbfb81ff879d",
+          "date": "2026-03-05T00:41:35.115Z",
+          "stock": 1,
+          "cost": 2800
+        }
+      ]
+    },
+    {
+      "id": "b193a63e-41ac-405d-b0d9-488b6ec2ef22",
+      "name": "Manteca (kg)",
+      "cost": 1200,
+      "stock": 0.5
+    },
+    {
+      "id": "f1a1c803-9fef-4949-8ec3-9c2b7a739468",
+      "name": "Piña (unidad)",
+      "cost": 900,
+      "stock": 1,
+      "batches": [
+        {
+          "id": "legacy-329edbe3-c81c-4d56-b181-2a4aa8bc3d65",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 900,
+          "stock": 0
+        },
+        {
+          "id": "f52556be-7e08-427e-a3a2-39380b1646ea",
+          "date": "2026-03-02T17:44:13.591Z",
+          "stock": 1,
+          "cost": 900
+        }
+      ]
+    },
+    {
+      "id": "b9a8fd07-e700-434c-9415-5bc74b116354",
+      "name": "Papaya (unidad)",
+      "cost": 494,
+      "stock": 1.5,
+      "batches": [
+        {
+          "id": "legacy-722c5d4b-03ea-4ad4-af6c-810d74f7161c",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 600,
+          "stock": 0.5
+        },
+        {
+          "id": "3843ae2b-048d-4eea-a13f-9b59347c66db",
+          "date": "2026-03-07T13:01:51.773Z",
+          "stock": 1,
+          "cost": 441
+        }
+      ]
+    },
+    {
+      "id": "333bb76f-fa21-440b-a1a0-ea02e35cac31",
+      "name": "Repollo (unidad)",
+      "cost": 800,
+      "stock": 0.3
+    },
+    {
+      "id": "990efb3b-4ba9-483b-92fc-838c217f5c92",
+      "name": "Pan casero (unidad)",
+      "cost": 500,
+      "stock": 6
+    },
+    {
+      "id": "f917f8a5-31db-4214-a3f0-634944b7d9b7",
+      "name": "Harina (paquete 2,5 kg)",
+      "cost": 2000,
+      "stock": 1.75
+    },
+    {
+      "id": "0bec4db1-65ae-44fb-8e78-04b1c2593e8b",
+      "name": "Coco rallado (paquete 500 g)",
+      "cost": 3000,
+      "stock": 0.25,
+      "batches": [
+        {
+          "id": "legacy-168bb575-d868-4767-a2ae-5995ac27a0e7",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 3000,
+          "stock": 0.25
+        }
+      ]
+    },
+    {
+      "id": "8e75ec41-c396-4198-b662-afe97d5744b5",
+      "name": "Salsa de tomate Ketchup (envase 1,81 kg)",
+      "cost": 2095,
+      "stock": 0.75
+    },
+    {
+      "id": "1e642393-459c-4218-83ba-37a768f9cc56",
+      "name": "Azúcar moreno (bolsa)",
+      "cost": 1900,
+      "stock": 0.25
+    },
+    {
+      "id": "a802adad-fad3-4319-a1a4-7eb46fda8a94",
+      "name": "Azúcar moreno (bolsa)",
+      "cost": 6060,
+      "stock": 0.5
+    },
+    {
+      "id": "3e36e913-751e-4670-9fd9-d630c9525b09",
+      "name": "Papas (kg)",
+      "cost": 1000,
+      "stock": 2.5,
+      "batches": [
+        {
+          "id": "legacy-1ee440ce-3413-4f04-8d82-112e33fc6e9a",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1000,
+          "stock": 0.5
+        },
+        {
+          "id": "c2102fa8-b165-49b2-99fa-e21865574e36",
+          "date": "2026-03-05T00:40:59.133Z",
+          "stock": 2,
+          "cost": 1000
+        }
+      ]
+    },
+    {
+      "id": "a46cf82d-34bd-4197-85cd-4782fa770bff",
+      "name": "Tomate para chimichurri (unidad)",
+      "cost": 193.33333333333334,
+      "stock": 15,
+      "batches": [
+        {
+          "id": "legacy-cd87b6b9-3b07-4c38-9855-1a125e359871",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 300,
+          "stock": 3
+        },
+        {
+          "id": "fb7b30d3-2d4f-4fb9-aba1-19492504a4a7",
+          "date": "2026-03-05T00:40:29.816Z",
+          "stock": 12,
+          "cost": 166.66666666666666
+        }
+      ]
+    },
+    {
+      "id": "7812288c-8a85-4d28-86ca-4f41c115f860",
+      "name": "Rollo papel encerado Reynolds (rollo)",
+      "cost": 2000,
+      "stock": 0.5
+    },
+    {
+      "id": "9c54b32b-5342-4374-8e5c-f6baae3879a6",
+      "name": "Papel adhesivo Glad (rollo)",
+      "cost": 1750,
+      "stock": 1
+    },
+    {
+      "id": "cb4fdd34-70b5-4cd5-a9e7-8e5bcb1e1325",
+      "name": "Esponja lavar platos (unidad)",
+      "cost": 70,
+      "stock": 2
+    },
+    {
+      "id": "c4255546-0719-4344-87f8-fc2b116e2838",
+      "name": "Filtros de café (unidad)",
+      "cost": 3.91,
+      "stock": 12
+    },
+    {
+      "id": "ea9742ad-6fb3-4113-9812-dae30d209bd2",
+      "name": "Cucharas biodegradables (unidad)",
+      "cost": 15,
+      "stock": 50
+    },
+    {
+      "id": "eeb09559-ce64-491a-b9d1-3277977a41c2",
+      "name": "Tenedores biodegradables (unidad)",
+      "cost": 15,
+      "stock": 50
+    },
+    {
+      "id": "55f6dd5c-766d-4486-9225-adf0a817abd3",
+      "name": "Marshmallows (paquete 100 g)",
+      "cost": 400,
+      "stock": 1
+    },
+    {
+      "id": "fe0f2610-8228-4918-94ea-1592a7fcda7e",
+      "name": "Bolsas pequeñas (rollo)",
+      "cost": 1000,
+      "stock": 1
+    },
+    {
+      "id": "4980e2f5-cf5e-41d9-becf-77fe6831f8c3",
+      "name": "Bolsas grandes (rollo)",
+      "cost": 2300,
+      "stock": 1
+    },
+    {
+      "id": "5b6163f0-a5ea-4788-8d6e-c4497eb47c96",
+      "name": "Conos Victoria (unidad)",
+      "cost": 60,
+      "stock": 85
+    },
+    {
+      "id": "7452c3e6-d282-4079-b17f-c58bd9704f3d",
+      "name": "Servilletas cuadrada (paquete 350 unidades)",
+      "cost": 3003.3333333333335,
+      "stock": 1.5,
+      "batches": [
+        {
+          "id": "legacy-ff95b317-6f8d-437a-8241-c00e1ce50393",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 3000,
+          "stock": 0.5
+        },
+        {
+          "id": "1611daf0-79fa-4fd2-bcef-f64b1392122c",
+          "date": "2026-03-07T12:57:09.456Z",
+          "stock": 1,
+          "cost": 3005
+        }
+      ]
+    },
+    {
+      "id": "37b136e6-2d69-4937-94f9-a4fb457ce887",
+      "name": "Cuchara plástica (unidad)",
+      "cost": 9,
+      "stock": 100
+    },
+    {
+      "id": "1bcdd2a6-a557-4ced-a6ba-ea19ffaed3f8",
+      "name": "Contenedor helado 16 Oz (unidad)",
+      "cost": 90,
+      "stock": 8
+    },
+    {
+      "id": "c93aef31-82db-4633-b51e-823594b068a6",
+      "name": "Vaso y tapa #8 (unidad)",
+      "cost": 41,
+      "stock": 22
+    },
+    {
+      "id": "4c58c720-2c63-4ded-aabd-f7b362249957",
+      "name": "Margarina (barra)",
+      "cost": 12,
+      "stock": 186.3
+    },
+    {
+      "id": "0bf1f1ff-10a0-41b1-92e2-0a2da1e6b518",
+      "name": "Bandeja 6x6 blancas (unidad)",
+      "cost": 60,
+      "stock": 3
+    },
+    {
+      "id": "76081be2-232a-443a-a167-5e49562d8edc",
+      "name": "Bandeja de papas (unidad)",
+      "cost": 45,
+      "stock": 4
+    },
+    {
+      "id": "3970d12c-9e1c-4e62-8ae8-0b3a766fc595",
+      "name": "Bandeja 6x6 transparente (unidad)",
+      "cost": 60,
+      "stock": 1
+    },
+    {
+      "id": "7bad2d90-2330-4aaa-be05-9d284fbed88b",
+      "name": "Tazas verdes chinas (unidad)",
+      "cost": 100,
+      "stock": 2
+    },
+    {
+      "id": "9973b018-6e8f-43a7-8306-8e7603789713",
+      "name": "Bandeja slice para crepa (unidad)",
+      "cost": 60,
+      "stock": 12
+    },
+    {
+      "id": "ab7a0e67-2ce3-47f1-85eb-58b13130ef5f",
+      "name": "Vasos para conos (unidad)",
+      "cost": 20,
+      "stock": 20
+    },
+    {
+      "id": "8573bfb0-74c8-4b9a-843d-e5b4c4b3392a",
+      "name": "Paletas para conos (unidad)",
+      "cost": 5,
+      "stock": 79,
+      "batches": [
+        {
+          "id": "legacy-bb150ddf-dd95-44be-b00b-b29607fe2575",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 5,
+          "stock": 79
+        }
+      ]
+    },
+    {
+      "id": "bfe265cb-e5ae-4cdf-a1bc-2ba6a818f5c6",
+      "name": "Papel higiénico Super Max (unidad)",
+      "cost": 385,
+      "stock": 6
+    },
+    {
+      "id": "ace75ba1-8b41-4844-9e31-2768f8d34c24",
+      "name": "Jabón de platos (botella)",
+      "cost": 950,
+      "stock": 1
+    },
+    {
+      "id": "a811f2d7-83e7-4ad1-b5c9-a1e29579b3f4",
+      "name": "Bandeja grande bio para llevar (unidad)",
+      "cost": 98,
+      "stock": 50
+    },
+    {
+      "id": "a1da10d4-e0f8-43e7-8dc9-6310ff1ce6af",
+      "name": "Nuez de nogal (taza)",
+      "cost": 3900,
+      "stock": 1
+    },
+    {
+      "id": "d4807eca-b1ff-440b-aaef-ee990bb84c7b",
+      "name": "Huevos (1/2 cartón)",
+      "cost": 1500,
+      "stock": 12.5,
+      "batches": [
+        {
+          "id": "legacy-bda18116-42e2-4cad-b5a5-bd04d142798e",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1500,
+          "stock": 0
+        },
+        {
+          "id": "f9c47fa2-6184-4c7c-933d-ea18a09c4316",
+          "date": "2026-03-02T01:17:37.707Z",
+          "stock": 6.5,
+          "cost": 1500
+        },
+        {
+          "id": "ef1a28d8-3ef0-465e-be31-39644885b3bd",
+          "date": "2026-03-08T13:00:28.554Z",
+          "stock": 6,
+          "cost": 1500
+        }
+      ]
+    },
+    {
+      "id": "be9d181a-b1ae-40cd-a3b1-dcd4f4b60831",
+      "name": "Fresas (caja 400 g)",
+      "cost": 1925,
+      "stock": 2,
+      "batches": [
+        {
+          "id": "legacy-5df952ac-a056-4e28-baa6-942402402871",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1800,
+          "stock": 0
+        },
+        {
+          "id": "7cf3fd93-72c7-427a-b8e2-69f6c68d8192",
+          "date": "2026-03-02T01:24:04.073Z",
+          "stock": 1,
+          "cost": 1800
+        },
+        {
+          "id": "22af0657-8a79-45b2-ae6e-7730b19ec182",
+          "date": "2026-03-07T13:01:29.474Z",
+          "stock": 1,
+          "cost": 2050
+        }
+      ]
+    },
+    {
+      "id": "466a5fb6-78d6-4323-9e83-bb9081f5e70d",
+      "name": "Helado de frutas (unidad)",
+      "cost": 164.40384615384616,
+      "stock": 26,
+      "batches": [
+        {
+          "id": "legacy-2e1638ed-e362-44fc-a096-f489bfa2a8b5",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 400,
+          "stock": 0
+        },
+        {
+          "id": "676595d3-e0a3-4ee9-8031-a09b0f122349",
+          "date": "2026-03-02T01:28:01.124Z",
+          "stock": 8,
+          "cost": 50
+        },
+        {
+          "id": "9eab78db-5291-4391-aa9d-a312f9804c2a",
+          "date": "2026-03-02T02:22:40.872Z",
+          "stock": 7,
+          "cost": 457.14285714285717
+        },
+        {
+          "id": "f5d71afe-9561-44fb-8f2e-7c3f1bbd1a88",
+          "date": "2026-03-02T12:54:42.671Z",
+          "stock": 11,
+          "cost": 61.31818181818182
+        }
+      ]
+    },
+    {
+      "id": "60062739-3821-4e4c-bc71-ad87c5744977",
+      "name": "Azucar (paquete 2 kg)",
+      "cost": 1460,
+      "stock": 0.7000000000000001,
+      "batches": [
+        {
+          "id": "7bf2196e-11b3-4201-b257-2c016458f451",
+          "date": "2026-03-02T11:31:39.088Z",
+          "stock": 0.7000000000000001,
+          "cost": 1460
+        }
+      ]
+    },
+    {
+      "id": "6c820288-2aa6-4036-a27a-858eefd18a06",
+      "name": "Gelatina (paquete 1081 gramos)",
+      "cost": 1.6666666666666667,
+      "stock": 0.6,
+      "batches": [
+        {
+          "id": "legacy-eb979efe-7d7e-44de-a163-6e0f22903f54",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 0,
+          "stock": 0
+        },
+        {
+          "id": "6194c5aa-5759-49f9-8d1e-befd3d5d8c29",
+          "date": "2026-03-02T17:43:28.344Z",
+          "stock": 0.6,
+          "cost": 1.6666666666666667
+        }
+      ]
+    },
+    {
+      "id": "5b79ed5a-4c1f-4226-a372-820f2e9bfa32",
+      "name": "Maicena (paquete de 1 kg)",
+      "cost": 1100,
+      "stock": 1,
+      "batches": [
+        {
+          "id": "legacy-a44c45f1-b92c-4cbb-a7d8-85817dcced16",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1100,
+          "stock": 0
+        },
+        {
+          "id": "aa382606-f1ff-455a-a976-95279acb6e88",
+          "date": "2026-03-05T00:37:37.883Z",
+          "stock": 1,
+          "cost": 1100
+        }
+      ]
+    },
+    {
+      "id": "43348e16-244a-42f6-8f75-6bb20fa27ab0",
+      "name": "Pan dulce panadería (bolsa)",
+      "cost": 1200,
+      "stock": 2,
+      "batches": [
+        {
+          "id": "legacy-51f339f1-caad-4bef-b800-ed8f2cb31194",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1200,
+          "stock": 0
+        },
+        {
+          "id": "67cbb786-c6cf-4d70-9283-0681dfbbeff3",
+          "date": "2026-03-05T00:38:41.632Z",
+          "stock": 2,
+          "cost": 1200
+        }
+      ]
+    },
+    {
+      "id": "fc0c259d-9a6b-4b8d-b08c-97f77021122c",
+      "name": "Helado Vainilla Chips (1 gal)",
+      "cost": 7384,
+      "stock": 1,
+      "batches": [
+        {
+          "id": "legacy-f6e4102e-19ef-4ae7-9318-9025d30601a2",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 7398,
+          "stock": 0
+        },
+        {
+          "id": "3437a25a-d408-4946-b45b-0285ea1428af",
+          "date": "2026-03-07T12:17:28.217Z",
+          "stock": 1,
+          "cost": 7384
+        }
+      ]
+    },
+    {
+      "id": "d693474b-6339-4209-ac45-ca0360e9858c",
+      "name": "Helado Napolitano Alaska (1 gal)",
+      "cost": 5496,
+      "stock": 1,
+      "batches": [
+        {
+          "id": "legacy-9b7f151f-7ba7-4502-97eb-e69c42e48d92",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 5496,
+          "stock": 0
+        },
+        {
+          "id": "ac30e269-97cd-4d50-879f-eb1caf7b301e",
+          "date": "2026-03-07T12:18:34.098Z",
+          "stock": 1,
+          "cost": 5496
+        }
+      ]
+    },
+    {
+      "id": "2eca795e-81fb-413f-b063-cbbdd36516f6",
+      "name": "Helado Vainilla (1/2 gal)",
+      "cost": 3939,
+      "stock": 1,
+      "batches": [
+        {
+          "id": "legacy-d717d9c5-df0e-4c7b-ac23-4ecde7f2f153",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 3939,
+          "stock": 0
+        },
+        {
+          "id": "34dfb19d-34da-4738-8ab8-35cf00835339",
+          "date": "2026-03-07T12:21:13.348Z",
+          "stock": 1,
+          "cost": 3939
+        }
+      ]
+    },
+    {
+      "id": "7c2945aa-96b6-48e3-ac73-f634e3791806",
+      "name": "Helado Mini Sandwich Chocolate (unidad)",
+      "cost": 318.625,
+      "stock": 8,
+      "batches": [
+        {
+          "id": "legacy-f4df7919-90b0-46c0-8af6-145aecc75166",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 319,
+          "stock": 0
+        },
+        {
+          "id": "7aae819f-5646-4ad9-a191-66185207d49e",
+          "date": "2026-03-07T12:27:43.764Z",
+          "stock": 8,
+          "cost": 318.625
+        }
+      ]
+    },
+    {
+      "id": "cc66e65e-be35-47b5-9598-0d82f9719c54",
+      "name": "Helado Sundae Churchill (unidad)",
+      "cost": 649,
+      "stock": 3,
+      "batches": [
+        {
+          "id": "legacy-326363f1-3514-4da7-b695-b718ece4d189",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 649,
+          "stock": 0
+        },
+        {
+          "id": "6d4baf97-f67c-4af9-956d-761ef1546feb",
+          "date": "2026-03-07T12:29:40.546Z",
+          "stock": 3,
+          "cost": 649
+        }
+      ]
+    },
+    {
+      "id": "89089ca2-d4cf-47bf-8b8e-1955367d0e0c",
+      "name": "Barquillos (paquete)",
+      "cost": 720,
+      "stock": 3,
+      "batches": [
+        {
+          "id": "legacy-97c174ec-5cb9-4d06-8151-38b1f3bb52bc",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 720,
+          "stock": 0
+        },
+        {
+          "id": "2a7fe66f-6b15-4083-b257-7efad6ad9915",
+          "date": "2026-03-07T12:56:01.223Z",
+          "stock": 3,
+          "cost": 720
+        }
+      ]
+    },
+    {
+      "id": "bad2462f-736c-4484-b096-0c0c4aa0fc85",
+      "name": "Rollo de servilletas de cocina",
+      "cost": 1000,
+      "stock": 3,
+      "batches": [
+        {
+          "id": "legacy-c12471c1-8b4c-4076-b7e3-22d20e0392a9",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1000,
+          "stock": 0
+        },
+        {
+          "id": "0ec6fa78-cef0-4dac-aaec-1316d2bd4660",
+          "date": "2026-03-07T12:58:17.073Z",
+          "stock": 3,
+          "cost": 1000
+        }
+      ]
+    },
+    {
+      "id": "e2b10c54-f176-406e-afc2-998b45f60bad",
+      "name": "Jabón de manos (bolsa 750 ml)",
+      "cost": 1490,
+      "stock": 1,
+      "batches": [
+        {
+          "id": "legacy-8e358c1b-777e-47ef-a5e4-ceea97e4b5f3",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 1490,
+          "stock": 0
+        },
+        {
+          "id": "49a5861e-8742-4f73-8659-94621ce4317f",
+          "date": "2026-03-07T12:59:44.724Z",
+          "stock": 1,
+          "cost": 1490
+        }
+      ]
+    },
+    {
+      "id": "9dac4224-5a99-4107-98d4-253df399dc32",
+      "name": "Aceite oliva en spray (botella)",
+      "cost": 2300,
+      "stock": 1,
+      "batches": [
+        {
+          "id": "legacy-5658bc65-c772-4a81-a77f-628c168297ae",
+          "date": "1970-01-01T00:00:00.000Z",
+          "cost": 2300,
+          "stock": 0
+        },
+        {
+          "id": "c90f1267-0b7c-4bf5-9b32-bda83416ce90",
+          "date": "2026-03-07T13:03:03.174Z",
+          "stock": 1,
+          "cost": 2300
+        }
+      ]
+    }
+  ],
+  "products": [
+    {
+      "id": "9746cc8c-6a94-4379-9734-2cbdafd36b40",
+      "name": "Cono dos bolas",
+      "price": 1000
+    },
+    {
+      "id": "76c84351-677e-4a48-bee3-0d4de5c9b69a",
+      "name": "Helado casero de coco",
+      "price": 750
+    },
+    {
+      "id": "d9a8e3e4-82f5-4c50-ba89-64e2612caea0",
+      "name": "Helado casero de frutas",
+      "price": 750
+    },
+    {
+      "id": "1178f607-ccb3-4230-891b-e77949d1a9b2",
+      "name": "Huevos (1/2 cartón)",
+      "price": 1800
+    },
+    {
+      "id": "d2fcbcb6-ee5c-4126-8ac4-c0545388df6e",
+      "name": "Cono una bola",
+      "price": 500
+    },
+    {
+      "id": "c617c171-3407-4bef-9926-ff0b76ce89cb",
+      "name": "Paleta cero",
+      "price": 950
+    },
+    {
+      "id": "1e1c4199-1208-46af-8bbf-1af95b72740c",
+      "name": "Gallo picadillo de papa",
+      "price": 1750
+    },
+    {
+      "id": "0c0d0c0d-32ff-4639-88d4-0138a07b738c",
+      "name": "Queque casero",
+      "price": 1200
+    },
+    {
+      "id": "90efc0c1-2a99-4660-89bc-860417f09d27",
+      "name": "Aguadulce",
+      "price": 1000
+    },
+    {
+      "id": "7ab9d83d-3637-40a2-bd37-c55d377d0000",
+      "name": "Copa de frutas sin helado",
+      "price": 3000
+    },
+    {
+      "id": "02a589ca-51ea-438d-88ee-490575e37ce3",
+      "name": "Copa de frutas con helado",
+      "price": 3300
+    },
+    {
+      "id": "a185a16b-7bca-4015-8941-83f831077739",
+      "name": "Queque casero rebajado",
+      "price": 1000
+    },
+    {
+      "id": "852834a0-294b-4d49-84f4-800b1228591c",
+      "name": "Crepa de pollo (Gabriel)",
+      "price": 3000
+    },
+    {
+      "id": "2184a85d-3f1d-4456-98c9-8dc4ddfc4ac2",
+      "name": "Gin",
+      "price": 500
+    },
+    {
+      "id": "d99d64bd-7c41-4385-baa6-82ceec2a0414",
+      "name": "Leche corriente",
+      "price": 1200
+    },
+    {
+      "id": "f01fca5a-20a2-49c2-bd7f-057062931145",
+      "name": "Gallo salchicón chile",
+      "price": 1750
+    },
+    {
+      "id": "9c94aa90-64be-4da4-8f60-cbfaddf33c04",
+      "name": "Gallo torta de huevo con frijoles",
+      "price": 1750
+    },
+    {
+      "id": "1316b453-b587-4215-9a0a-00f6a49a1387",
+      "name": "Gallo salchicón sin chile",
+      "price": 1750
+    },
+    {
+      "id": "cfc7f3cc-b179-4d96-9bc1-c5cb5c49b429",
+      "name": "Chocolate",
+      "price": 1500
+    },
+    {
+      "id": "110e3dde-c7ba-45ff-937b-1e2488c25e3f",
+      "name": "Aguadulce con leche",
+      "price": 1200
+    },
+    {
+      "id": "fe974174-3a06-422d-8b0a-6960407adfe9",
+      "name": "Café con leche",
+      "price": 1200,
+      "hidden": false
+    },
+    {
+      "id": "8f5abf08-a26f-4d48-8eff-c9838f0b2183",
+      "name": "café",
+      "price": 0,
+      "hidden": true
+    },
+    {
+      "id": "31bd5bc0-511a-41ca-beaf-d546858cc8b3",
+      "name": "Pan Casero Panadería",
+      "price": 1200
+    },
+    {
+      "id": "fdda2ac6-9a3d-4ad3-8d04-62b49d11cef1",
+      "name": "Coca Cola Zero",
+      "price": 500,
+      "hidden": false
+    },
+    {
+      "id": "642e74ff-35e5-4cf0-8d5a-f941528e28ff",
+      "name": "Paquete de café",
+      "price": 2300
+    },
+    {
+      "id": "5988c47c-27b7-4fd7-ae64-921bd0598efe",
+      "name": "Leche Delactomy",
+      "price": 1300
+    },
+    {
+      "id": "c6f3fb3a-6082-44ff-bfb2-107f5701d3ae",
+      "name": "Crepa de Fresa",
+      "price": 2300
+    },
+    {
+      "id": "d476e36c-2823-4226-a8ce-60078c7fda1a",
+      "name": "Crepa de Banano Fresa ",
+      "price": 3000
+    },
+    {
+      "id": "cd1bf198-59f1-4617-91e6-19e8998074a0",
+      "name": "Bola de Helado Extra",
+      "price": 0,
+      "hidden": true
+    },
+    {
+      "id": "76222134-3202-46e4-ba3d-a4805463adfd",
+      "name": "Café negro",
+      "price": 1000
+    },
+    {
+      "id": "1329b20a-0b86-4549-9817-b07b20595cfa",
+      "name": "Crepa de Banano Fresa - Helado Extra",
+      "price": 3500
+    },
+    {
+      "id": "2488aa6b-8f6f-41e4-b21f-f4f04792f17f",
+      "name": "Crepa de Fresa (Helado Extra)",
+      "price": 2800
+    },
+    {
+      "id": "676e203a-5027-4d69-9028-3dd82002f2c9",
+      "name": "Refresco natural",
+      "price": 1000
+    },
+    {
+      "id": "5945ff2e-c4b7-4bac-a80e-746bae2eb991",
+      "name": "Tamal con café",
+      "price": 2000
+    },
+    {
+      "id": "0b4b3737-6450-4632-a6f6-c8b15c741a57",
+      "name": "Mini Sandwich Chocolate",
+      "price": 500
+    }
+  ],
+  "providers": [
+    {
+      "id": "cb939951-1f6c-40c7-b835-0fd64b20f125",
+      "name": "META"
+    },
+    {
+      "id": "56c80ba9-e940-434d-8e16-a3edffd2feba",
+      "name": "Jonatan"
+    },
+    {
+      "id": "84645709-9f53-4327-81f1-9e6bc3e68034",
+      "name": "Tía Olga"
+    },
+    {
+      "id": "1efb3514-df77-4e48-b27d-44a8d188c90f",
+      "name": "Lucia"
+    },
+    {
+      "id": "12c03d64-5e45-4ff5-8925-ac7d24adeaf3",
+      "name": "Lucía"
+    },
+    {
+      "id": "7deaf9da-007c-4ce9-ace7-04015d20eb61",
+      "name": "Nydia"
+    },
+    {
+      "id": "4265f8ea-5c80-4bbe-9ed6-59afeab43a8a",
+      "name": "MaxiPalí"
+    },
+    {
+      "id": "f59ef79c-05cf-4712-b6c6-c310e24ddb71",
+      "name": "Mayca"
+    },
+    {
+      "id": "c885e96b-fb1d-4cd4-a324-68dcffd729d3",
+      "name": "MasXmenos"
+    },
+    {
+      "id": "a2db70b8-9e84-412b-a7d9-80003c9b53ad",
+      "name": "Yeli"
+    },
+    {
+      "id": "db85f66e-7c0d-404e-8cd9-ef3ab6b699b8",
+      "name": "Abastecedor El Este"
+    },
+    {
+      "id": "19daaf21-97dc-45fd-9905-1fa7caf97b1c",
+      "name": "Panadería Piedades Norte"
+    },
+    {
+      "id": "d96a00bc-cf69-42e1-9da5-1310e4599594",
+      "name": "José Verdurero Miércoles"
+    },
+    {
+      "id": "34263524-bbcf-432f-b5e9-a73e4ffb95db",
+      "name": "Viviana"
+    },
+    {
+      "id": "76f03504-8b99-4a78-9d2c-afc9d4062c34",
+      "name": "Lizdalia "
+    },
+    {
+      "id": "8e1ec499-24e8-4243-8129-661613611a65",
+      "name": "Dos Pinos"
+    },
+    {
+      "id": "775228c6-01e5-4314-89b2-0e5e4400f313",
+      "name": "3939"
+    },
+    {
+      "id": "68a3ac8f-0fa8-43cb-afc9-3489fdeb0218",
+      "name": "Walmart"
+    }
+  ],
+  "expenseTypes": [
+    {
+      "id": "a1d6d64a-2816-4698-bddf-7abfb2599f1e",
+      "name": "Alquiler"
+    },
+    {
+      "id": "9af53f8f-a997-4bb6-93a5-e58b33fb0cee",
+      "name": "Publicidad"
+    },
+    {
+      "id": "ffecd08f-1710-4a02-b5fe-59a61da2f0d6",
+      "name": "Servicios"
+    },
+    {
+      "id": "36cbd09f-3eb3-4a68-868e-be55dbca12d2",
+      "name": "Salario Nydia"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "a9225229-7a53-45b2-83ba-f087b45f5345",
+      "type": "SALE",
+      "date": "2026-03-10T17:31:12.991Z",
+      "amount": 500,
+      "description": "Venta: Gin (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "2184a85d-3f1d-4456-98c9-8dc4ddfc4ac2",
+            "name": "Gin",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "08f85e7a-c5b9-4992-a994-d60e71207f58",
+      "type": "SALE",
+      "date": "2026-03-10T17:31:04.523Z",
+      "amount": 500,
+      "description": "Venta: Mini Sandwich Chocolate (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "0b4b3737-6450-4632-a6f6-c8b15c741a57",
+            "name": "Mini Sandwich Chocolate",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "189da77a-8f63-4929-b79f-8441c5378720",
+      "type": "SALE",
+      "date": "2026-03-10T17:30:54.025Z",
+      "amount": 1800,
+      "description": "Venta: Huevos (1/2 cartón) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1178f607-ccb3-4230-891b-e77949d1a9b2",
+            "name": "Huevos (1/2 cartón)",
+            "price": "1800",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "934c3567-19d9-4e05-8b3c-c57fc9ec4cb1",
+      "type": "SALE",
+      "date": "2026-03-08T23:50:07.732Z",
+      "amount": 6000,
+      "description": "Venta: Crepa de Banano Fresa  (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d476e36c-2823-4226-a8ce-60078c7fda1a",
+            "name": "Crepa de Banano Fresa ",
+            "price": "3000",
+            "qty": 2
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "800018b5-7b28-4e3b-98bb-887a2e468fbc",
+      "type": "SALE",
+      "date": "2026-03-08T23:49:54.482Z",
+      "amount": 1000,
+      "description": "Venta: Mini Sandwich Chocolate (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "0b4b3737-6450-4632-a6f6-c8b15c741a57",
+            "name": "Mini Sandwich Chocolate",
+            "price": "500",
+            "qty": 2
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "16384ff5-db85-4488-8825-65e4868b5ae5",
+      "type": "SALE",
+      "date": "2026-03-08T23:48:24.648Z",
+      "amount": 2400,
+      "description": "Venta: Leche corriente (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d99d64bd-7c41-4385-baa6-82ceec2a0414",
+            "name": "Leche corriente",
+            "price": "1200",
+            "qty": 2
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "5cf0eec0-b562-47a3-b8a6-c0b892c283dd",
+      "type": "PURCHASE",
+      "date": "2026-03-08T13:00:28.555Z",
+      "amount": 9000,
+      "description": "Compra Inventario: Huevos (1/2 cartón) (x6)",
+      "details": {
+        "itemName": "Huevos (1/2 cartón)",
+        "quantity": 6,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Jonatan"
+      }
+    },
+    {
+      "id": "d5addc87-5984-4fcb-b977-c5b95089a574",
+      "type": "SALE",
+      "date": "2026-03-08T12:59:47.056Z",
+      "amount": 2000,
+      "description": "Venta: Tamal con café (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "5945ff2e-c4b7-4bac-a80e-746bae2eb991",
+            "name": "Tamal con café",
+            "price": "2000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "4f1d7447-7a43-42db-82ab-ae19349fcbfb",
+      "type": "SALE",
+      "date": "2026-03-08T12:59:07.054Z",
+      "amount": 1000,
+      "description": "Venta: Refresco natural (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "676e203a-5027-4d69-9028-3dd82002f2c9",
+            "name": "Refresco natural",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "fcfbb220-1d89-491a-8088-b252cb057b70",
+      "type": "SALE",
+      "date": "2026-03-08T12:58:55.137Z",
+      "amount": 3000,
+      "description": "Venta: Crepa de pollo (Gabriel) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "852834a0-294b-4d49-84f4-800b1228591c",
+            "name": "Crepa de pollo (Gabriel)",
+            "price": "3000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "25e2e3e6-88d8-482f-85b2-fd5fbc163f62",
+      "type": "SALE",
+      "date": "2026-03-08T12:58:23.837Z",
+      "amount": 1000,
+      "description": "Venta: Café negro (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "76222134-3202-46e4-ba3d-a4805463adfd",
+            "name": "Café negro",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "fd043dff-c381-4ee1-83cd-85cb9e4415d7",
+      "type": "SALE",
+      "date": "2026-03-08T12:58:09.154Z",
+      "amount": 3000,
+      "description": "Venta: Crepa de pollo (Gabriel) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "852834a0-294b-4d49-84f4-800b1228591c",
+            "name": "Crepa de pollo (Gabriel)",
+            "price": "3000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "5e08c66e-f4df-42c4-b62e-639d43191571",
+      "type": "SALE",
+      "date": "2026-03-08T12:57:50.337Z",
+      "amount": 500,
+      "description": "Venta: Coca Cola Zero (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "fdda2ac6-9a3d-4ad3-8d04-62b49d11cef1",
+            "name": "Coca Cola Zero",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "e4002110-35e5-4989-a8db-d34247524108",
+      "type": "SALE",
+      "date": "2026-03-08T12:57:33.704Z",
+      "amount": 1000,
+      "description": "Venta: Refresco natural (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "676e203a-5027-4d69-9028-3dd82002f2c9",
+            "name": "Refresco natural",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "1eb8db6d-8faf-4573-8f04-cfc5545d29ff",
+      "type": "SALE",
+      "date": "2026-03-08T12:56:51.771Z",
+      "amount": 2000,
+      "description": "Venta: Queque casero (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "0c0d0c0d-32ff-4639-88d4-0138a07b738c",
+            "name": "Queque casero",
+            "price": "1000",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "5ef8cd88-00a8-4db0-8684-a1485d09a622",
+      "type": "SALE",
+      "date": "2026-03-08T12:56:28.354Z",
+      "amount": 3300,
+      "description": "Venta: Copa de frutas con helado (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "02a589ca-51ea-438d-88ee-490575e37ce3",
+            "name": "Copa de frutas con helado",
+            "price": "3300",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "79f153f1-803f-47ce-b266-45fe677a305b",
+      "type": "SALE",
+      "date": "2026-03-08T12:56:09.838Z",
+      "amount": 2850,
+      "description": "Venta: Paleta cero (x3)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "c617c171-3407-4bef-9926-ff0b76ce89cb",
+            "name": "Paleta cero",
+            "price": "950",
+            "qty": 3
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "2ce332d6-fe3b-471b-989e-aef935113a45",
+      "type": "SALE",
+      "date": "2026-03-08T12:55:49.405Z",
+      "amount": 1200,
+      "description": "Venta: Gallo salchicón chile (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "f01fca5a-20a2-49c2-bd7f-057062931145",
+            "name": "Gallo salchicón chile",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "5d0d800c-706a-467c-bf14-72b4d2314552",
+      "type": "SALE",
+      "date": "2026-03-08T12:55:35.137Z",
+      "amount": 1750,
+      "description": "Venta: Gallo salchicón chile (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "f01fca5a-20a2-49c2-bd7f-057062931145",
+            "name": "Gallo salchicón chile",
+            "price": "1750",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "e95b8bb1-2bfe-44be-9170-28d807497f33",
+      "type": "SALE",
+      "date": "2026-03-08T12:55:23.504Z",
+      "amount": 1750,
+      "description": "Venta: Gallo salchicón chile (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "f01fca5a-20a2-49c2-bd7f-057062931145",
+            "name": "Gallo salchicón chile",
+            "price": "1750",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "429e761e-cd60-4229-9665-99a7fd7f5ce9",
+      "type": "SALE",
+      "date": "2026-03-08T12:55:08.605Z",
+      "amount": 1200,
+      "description": "Venta: Gallo salchicón sin chile (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1316b453-b587-4215-9a0a-00f6a49a1387",
+            "name": "Gallo salchicón sin chile",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "55e5818b-a866-43b2-8677-978ea30bb0d4",
+      "type": "SALE",
+      "date": "2026-03-08T12:53:58.237Z",
+      "amount": 1800,
+      "description": "Venta: Huevos (1/2 cartón) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1178f607-ccb3-4230-891b-e77949d1a9b2",
+            "name": "Huevos (1/2 cartón)",
+            "price": "1800",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "4deaf64f-0ef9-4663-a291-142dc19911e7",
+      "type": "SALE",
+      "date": "2026-03-08T12:53:45.037Z",
+      "amount": 1800,
+      "description": "Venta: Huevos (1/2 cartón) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1178f607-ccb3-4230-891b-e77949d1a9b2",
+            "name": "Huevos (1/2 cartón)",
+            "price": "1800",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "bea571ae-2ebb-4c65-8a80-11cbddd6645b",
+      "type": "SALE",
+      "date": "2026-03-08T12:53:02.956Z",
+      "amount": 1000,
+      "description": "Venta: Cono dos bolas (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "9746cc8c-6a94-4379-9734-2cbdafd36b40",
+            "name": "Cono dos bolas",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "47520a9e-1bb6-4e16-b1bb-896dc94bdc85",
+      "type": "SALE",
+      "date": "2026-03-08T12:52:49.189Z",
+      "amount": 2000,
+      "description": "Venta: Cono dos bolas (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "9746cc8c-6a94-4379-9734-2cbdafd36b40",
+            "name": "Cono dos bolas",
+            "price": "1000",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "7ffbf63c-e831-443d-802e-2a4ed6dc4892",
+      "type": "PURCHASE",
+      "date": "2026-03-07T13:04:36.760Z",
+      "amount": 1840,
+      "description": "Compra Inventario: Salchichón con chile (porción) (x5)",
+      "details": {
+        "itemName": "Salchichón con chile (porción)",
+        "quantity": 5,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "293d1c75-6f07-4531-89b0-b877d9138e43",
+      "type": "PURCHASE",
+      "date": "2026-03-07T13:03:03.175Z",
+      "amount": 2300,
+      "description": "Compra Inventario: Aceite oliva en spray (botella) (x1)",
+      "details": {
+        "itemName": "Aceite oliva en spray (botella)",
+        "quantity": 1,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "28b688b3-6add-4249-ba27-16ffa1ddd2c6",
+      "type": "PURCHASE",
+      "date": "2026-03-07T13:01:51.774Z",
+      "amount": 441,
+      "description": "Compra Inventario: Papaya (unidad) (x1)",
+      "details": {
+        "itemName": "Papaya (unidad)",
+        "quantity": 1,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "1d5a86de-7484-4d89-9b0e-b961aabd9773",
+      "type": "PURCHASE",
+      "date": "2026-03-07T13:01:29.475Z",
+      "amount": 2050,
+      "description": "Compra Inventario: Fresas (caja 400 g) (x1)",
+      "details": {
+        "itemName": "Fresas (caja 400 g)",
+        "quantity": 1,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "cccf5225-5d77-4a25-af65-cf53212a8b43",
+      "type": "PURCHASE",
+      "date": "2026-03-07T13:00:33.441Z",
+      "amount": 740,
+      "description": "Compra Inventario: Azúcar Doña María (paquete 100 sobres) (x1)",
+      "details": {
+        "itemName": "Azúcar Doña María (paquete 100 sobres)",
+        "quantity": 1,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "a155cd00-80ef-4eb4-a4ce-33db4a0be666",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:59:44.724Z",
+      "amount": 1490,
+      "description": "Compra Inventario: Jabón de manos (bolsa 750 ml) (x1)",
+      "details": {
+        "itemName": "Jabón de manos (bolsa 750 ml)",
+        "quantity": 1,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "6bbb9e7d-de47-4643-8557-c9d58a278421",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:58:42.758Z",
+      "amount": 5240,
+      "description": "Compra Inventario: Coca Cola Zero 250 mL (botella) (x24)",
+      "details": {
+        "itemName": "Coca Cola Zero 250 mL (botella)",
+        "quantity": 24,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": ""
+      }
+    },
+    {
+      "id": "10f20d45-4d38-421b-86ce-3261a941ced1",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:58:17.074Z",
+      "amount": 3000,
+      "description": "Compra Inventario: Rollo de servilletas de cocina (x3)",
+      "details": {
+        "itemName": "Rollo de servilletas de cocina",
+        "quantity": 3,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "93940a15-d78c-4875-92fc-c63eb36e1d12",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:57:09.457Z",
+      "amount": 3005,
+      "description": "Compra Inventario: Servilletas cuadrada (paquete 350 unidades) (x1)",
+      "details": {
+        "itemName": "Servilletas cuadrada (paquete 350 unidades)",
+        "quantity": 1,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "77f10ee6-620a-4b26-9704-6bf795f7c065",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:56:01.224Z",
+      "amount": 2160,
+      "description": "Compra Inventario: Barquillos (paquete) (x3)",
+      "details": {
+        "itemName": "Barquillos (paquete)",
+        "quantity": 3,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Walmart"
+      }
+    },
+    {
+      "id": "d498f022-613e-43ca-9e5f-6d12cb8d89aa",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:30:39.214Z",
+      "amount": 13008,
+      "description": "Compra Inventario: Leche Delactomy 1 L (caja) (x12)",
+      "details": {
+        "itemName": "Leche Delactomy 1 L (caja)",
+        "quantity": 12,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "0b24f5b1-b239-423a-83d1-b7cc69cb822f",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:29:40.547Z",
+      "amount": 1947,
+      "description": "Compra Inventario: Helado Sundae Churchill (unidad) (x3)",
+      "details": {
+        "itemName": "Helado Sundae Churchill (unidad)",
+        "quantity": 3,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "bcf80974-515d-43e8-8225-7ef57f6ed29e",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:27:43.766Z",
+      "amount": 2549,
+      "description": "Compra Inventario: Helado Mini Sandwich Chocolate (unidad) (x8)",
+      "details": {
+        "itemName": "Helado Mini Sandwich Chocolate (unidad)",
+        "quantity": 8,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "4f5b5aad-f9a9-46ab-af33-9a8d5c9fa139",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:25:06.265Z",
+      "amount": 7163,
+      "description": "Compra Inventario: Paleta cero (unidad) (x12)",
+      "details": {
+        "itemName": "Paleta cero (unidad)",
+        "quantity": 12,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "79a067b7-36e0-4f2d-8206-9f10d862d903",
+      "type": "ADJUSTMENT",
+      "date": "2026-03-07T12:24:12.496Z",
+      "amount": 7163,
+      "description": "[ANULACIÓN] Reversa de Transacción: f0c0e495",
+      "voidingTxId": "f0c0e495-57af-440c-8d07-8cb3edbc0e16"
+    },
+    {
+      "id": "f0c0e495-57af-440c-8d07-8cb3edbc0e16",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:23:43.348Z",
+      "amount": 7163,
+      "description": "Compra Inventario: Paleta cero (unidad) (x1)",
+      "details": {
+        "itemName": "Paleta cero (unidad)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      },
+      "status": "VOIDED",
+      "voidingTxId": "79a067b7-36e0-4f2d-8206-9f10d862d903"
+    },
+    {
+      "id": "dd9884b4-6362-4984-a03b-1212780cb721",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:22:34.382Z",
+      "amount": 8988,
+      "description": "Compra Inventario: Leche normal 1 L (caja) (x12)",
+      "details": {
+        "itemName": "Leche normal 1 L (caja)",
+        "quantity": 12,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "839e0aa9-06bf-4575-a683-9b8a66b748af",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:21:13.349Z",
+      "amount": 3939,
+      "description": "Compra Inventario: Helado Vainilla (1/2 gal) (x1)",
+      "details": {
+        "itemName": "Helado Vainilla (1/2 gal)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "0599f58b-027a-46d0-bbbe-6a67c2cc3a9c",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:19:57.066Z",
+      "amount": 4485,
+      "description": "Compra Inventario: Té blanco 250 mL (botella) (x15)",
+      "details": {
+        "itemName": "Té blanco 250 mL (botella)",
+        "quantity": 15,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "33bb65fe-187e-49b0-81bd-b6ff314f5002",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:18:34.100Z",
+      "amount": 5496,
+      "description": "Compra Inventario: Helado Napolitano Alaska (1 gal) (x1)",
+      "details": {
+        "itemName": "Helado Napolitano Alaska (1 gal)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "6b4f0af5-ba54-48f4-a0ec-e8992bb36e52",
+      "type": "PURCHASE",
+      "date": "2026-03-07T12:17:28.219Z",
+      "amount": 7384,
+      "description": "Compra Inventario: Helado Vainilla Chips (1 gal) (x1)",
+      "details": {
+        "itemName": "Helado Vainilla Chips (1 gal)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Dos Pinos"
+      }
+    },
+    {
+      "id": "b51fae23-95be-4cf9-b7de-61010abda8c2",
+      "type": "SALE",
+      "date": "2026-03-05T23:15:00.506Z",
+      "amount": 1750,
+      "description": "Venta: Gallo salchicón chile (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "f01fca5a-20a2-49c2-bd7f-057062931145",
+            "name": "Gallo salchicón chile",
+            "price": "1750",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "0b796b3b-d45e-4ca9-b0a2-da60d50d0b61",
+      "type": "SALE",
+      "date": "2026-03-05T23:14:50.606Z",
+      "amount": 1800,
+      "description": "Venta: Huevos (1/2 cartón) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1178f607-ccb3-4230-891b-e77949d1a9b2",
+            "name": "Huevos (1/2 cartón)",
+            "price": "1800",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "8a4f19b1-6480-4df9-947c-423eb41acc85",
+      "type": "SALE",
+      "date": "2026-03-05T23:13:51.306Z",
+      "amount": 500,
+      "description": "Venta: Coca Cola Zero (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "fdda2ac6-9a3d-4ad3-8d04-62b49d11cef1",
+            "name": "Coca Cola Zero",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "bc09d7fe-361b-47c9-a0e7-b90b49f9159c",
+      "type": "SALE",
+      "date": "2026-03-05T23:12:47.207Z",
+      "amount": 1000,
+      "description": "Venta: Cono una bola (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d2fcbcb6-ee5c-4126-8ac4-c0545388df6e",
+            "name": "Cono una bola",
+            "price": "500",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "874360ad-ddf8-4c4a-9639-138f774056b5",
+      "type": "SALE",
+      "date": "2026-03-05T00:48:49.516Z",
+      "amount": 500,
+      "description": "Venta: Gin (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "2184a85d-3f1d-4456-98c9-8dc4ddfc4ac2",
+            "name": "Gin",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "c6342eb9-73c6-4dd7-9823-954a04fdf3c5",
+      "type": "PURCHASE",
+      "date": "2026-03-05T00:41:59.683Z",
+      "amount": 350,
+      "description": "Compra Inventario: Banano (unidad) (x7)",
+      "details": {
+        "itemName": "Banano (unidad)",
+        "quantity": 7,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Lucía"
+      }
+    },
+    {
+      "id": "cc7b1c95-67a2-42f2-af09-023954464492",
+      "type": "PURCHASE",
+      "date": "2026-03-05T00:41:35.117Z",
+      "amount": 2800,
+      "description": "Compra Inventario: Pechuga de pollo cocinada (unidad) (x1)",
+      "details": {
+        "itemName": "Pechuga de pollo cocinada (unidad)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Lizdalia "
+      }
+    },
+    {
+      "id": "3b14dfee-4b94-4b28-896c-a3dd74d986bf",
+      "type": "PURCHASE",
+      "date": "2026-03-05T00:40:59.134Z",
+      "amount": 2000,
+      "description": "Compra Inventario: Papas (kg) (x2)",
+      "details": {
+        "itemName": "Papas (kg)",
+        "quantity": 2,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "José Verdurero Miércoles"
+      }
+    },
+    {
+      "id": "0047485b-d68c-4021-b65a-3a356720ca43",
+      "type": "PURCHASE",
+      "date": "2026-03-05T00:40:29.817Z",
+      "amount": 2000,
+      "description": "Compra Inventario: Tomate para chimichurri (unidad) (x12)",
+      "details": {
+        "itemName": "Tomate para chimichurri (unidad)",
+        "quantity": 12,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "José Verdurero Miércoles"
+      }
+    },
+    {
+      "id": "7498b292-5cea-4b1b-896e-298f1015f898",
+      "type": "PURCHASE",
+      "date": "2026-03-05T00:38:41.633Z",
+      "amount": 2400,
+      "description": "Compra Inventario: Pan dulce panadería (bolsa) (x2)",
+      "details": {
+        "itemName": "Pan dulce panadería (bolsa)",
+        "quantity": 2,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Panadería Piedades Norte"
+      }
+    },
+    {
+      "id": "1777364a-4bb1-461a-96b5-13138c863caa",
+      "type": "PURCHASE",
+      "date": "2026-03-05T00:37:37.884Z",
+      "amount": 1100,
+      "description": "Compra Inventario: Maicena (paquete de 1 kg) (x1)",
+      "details": {
+        "itemName": "Maicena (paquete de 1 kg)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Abastecedor El Este"
+      }
+    },
+    {
+      "id": "087a521f-6dd6-4e81-accf-2940d3a7bce7",
+      "type": "SALE",
+      "date": "2026-03-05T00:36:31.083Z",
+      "amount": 500,
+      "description": "Venta: Coca Cola Zero (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "fdda2ac6-9a3d-4ad3-8d04-62b49d11cef1",
+            "name": "Coca Cola Zero",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "8fc7ca47-3655-4f94-933c-5d15b0204244",
+      "type": "SALE",
+      "date": "2026-03-05T00:35:13.366Z",
+      "amount": 1500,
+      "description": "Venta: Helado casero de coco (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "76c84351-677e-4a48-bee3-0d4de5c9b69a",
+            "name": "Helado casero de coco",
+            "price": "750",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "72125889-30a6-49ed-855d-61cbc9223fba",
+      "type": "SALE",
+      "date": "2026-03-05T00:34:56.516Z",
+      "amount": 3300,
+      "description": "Venta: Copa de frutas con helado (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "02a589ca-51ea-438d-88ee-490575e37ce3",
+            "name": "Copa de frutas con helado",
+            "price": "3300",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "ec4a466e-319a-4190-8340-66cf2d0dec28",
+      "type": "SALE",
+      "date": "2026-03-05T00:34:37.116Z",
+      "amount": 500,
+      "description": "Venta: Bola de Helado Extra (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "cd1bf198-59f1-4617-91e6-19e8998074a0",
+            "name": "Bola de Helado Extra",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "40d8ff0b-725d-4a74-9877-7bc67cc88e8f",
+      "type": "SALE",
+      "date": "2026-03-05T00:34:21.882Z",
+      "amount": 1000,
+      "description": "Venta: Bola de Helado Extra (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "cd1bf198-59f1-4617-91e6-19e8998074a0",
+            "name": "Bola de Helado Extra",
+            "price": "500",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "270ff2be-2df0-42bf-97f1-9b16724fb3f2",
+      "type": "SALE",
+      "date": "2026-03-05T00:33:37.066Z",
+      "amount": 3000,
+      "description": "Venta: Crepa de Banano Fresa  (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d476e36c-2823-4226-a8ce-60078c7fda1a",
+            "name": "Crepa de Banano Fresa ",
+            "price": "3000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "dcf70d13-4469-49ba-87b1-4066f5f48ba1",
+      "type": "SALE",
+      "date": "2026-03-05T00:33:23.366Z",
+      "amount": 3000,
+      "description": "Venta: Crepa de Banano Fresa  (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d476e36c-2823-4226-a8ce-60078c7fda1a",
+            "name": "Crepa de Banano Fresa ",
+            "price": "3000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "0083e690-bfd8-4553-b833-a8c9a5c4291f",
+      "type": "SALE",
+      "date": "2026-03-05T00:32:45.933Z",
+      "amount": 2300,
+      "description": "Venta: Crepa de Fresa (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "c6f3fb3a-6082-44ff-bfb2-107f5701d3ae",
+            "name": "Crepa de Fresa",
+            "price": "2300",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "49cf3f17-c777-4ab9-a426-3a1d204c7cc8",
+      "type": "SALE",
+      "date": "2026-03-05T00:31:59.016Z",
+      "amount": 1300,
+      "description": "Venta: Leche Delactomy (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "5988c47c-27b7-4fd7-ae64-921bd0598efe",
+            "name": "Leche Delactomy",
+            "price": "1300",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "05356098-c923-48c8-8a46-f590f3c37563",
+      "type": "SALE",
+      "date": "2026-03-05T00:31:37.549Z",
+      "amount": 1800,
+      "description": "Venta: Huevos (1/2 cartón) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1178f607-ccb3-4230-891b-e77949d1a9b2",
+            "name": "Huevos (1/2 cartón)",
+            "price": "1800",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "eb441c53-c4ba-4ed0-a0e5-f2760aa5deb1",
+      "type": "SALE",
+      "date": "2026-03-05T00:31:12.049Z",
+      "amount": 2300,
+      "description": "Venta: Paquete de café (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "642e74ff-35e5-4cf0-8d5a-f941528e28ff",
+            "name": "Paquete de café",
+            "price": "2300",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "af6a669f-9234-481d-88bb-a67b933c0473",
+      "type": "SALE",
+      "date": "2026-03-05T00:30:48.266Z",
+      "amount": 2000,
+      "description": "Venta: Coca Cola Zero (x4)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "fdda2ac6-9a3d-4ad3-8d04-62b49d11cef1",
+            "name": "Coca Cola Zero",
+            "price": "500",
+            "qty": 4
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "26c78f32-2083-4860-bf96-8e0deb5dd8a3",
+      "type": "SALE",
+      "date": "2026-03-05T00:29:52.282Z",
+      "amount": 7,
+      "description": "Venta: Pan Casero Panadería (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "31bd5bc0-511a-41ca-beaf-d546858cc8b3",
+            "name": "Pan Casero Panadería",
+            "price": "7",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "2d17983c-c2ea-4277-9c21-a11b98253179",
+      "type": "SALE",
+      "date": "2026-03-05T00:28:50.416Z",
+      "amount": 1000,
+      "description": "Venta: café (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "8f5abf08-a26f-4d48-8eff-c9838f0b2183",
+            "name": "café",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "2cf92b6d-1e91-45ef-994c-14dd381ee670",
+      "type": "SALE",
+      "date": "2026-03-05T00:28:12.700Z",
+      "amount": 6000,
+      "description": "Venta: café (x6)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "8f5abf08-a26f-4d48-8eff-c9838f0b2183",
+            "name": "café",
+            "price": "1000",
+            "qty": 6
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "f55d096c-5227-410a-ad5c-6fc16c0bc80e",
+      "type": "SALE",
+      "date": "2026-03-05T00:27:03.900Z",
+      "amount": 1200,
+      "description": "Venta: Gallo picadillo de papa (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1e1c4199-1208-46af-8bbf-1af95b72740c",
+            "name": "Gallo picadillo de papa",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "b4c68721-2620-4589-93ce-e4ac62e829a0",
+      "type": "SALE",
+      "date": "2026-03-05T00:26:38.733Z",
+      "amount": 1200,
+      "description": "Venta: Café con leche (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "fe974174-3a06-422d-8b0a-6960407adfe9",
+            "name": "Café con leche",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "2b796e73-1c3a-4173-88d6-71d522a6ce58",
+      "type": "SALE",
+      "date": "2026-03-05T00:26:21.499Z",
+      "amount": 7200,
+      "description": "Venta: Café con leche (x6)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "fe974174-3a06-422d-8b0a-6960407adfe9",
+            "name": "Café con leche",
+            "price": "1200",
+            "qty": 6
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "f5d86b44-00f6-4e42-a2b6-43b05a714b7e",
+      "type": "SALE",
+      "date": "2026-03-03T00:46:46.268Z",
+      "amount": 1500,
+      "description": "Venta: Helado casero de frutas (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d9a8e3e4-82f5-4c50-ba89-64e2612caea0",
+            "name": "Helado casero de frutas",
+            "price": "750",
+            "qty": 2
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "3aa3cfaa-2063-4286-bd5c-59dcd6d931e7",
+      "type": "SALE",
+      "date": "2026-03-03T00:46:38.386Z",
+      "amount": 1500,
+      "description": "Venta: Helado casero de coco (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "76c84351-677e-4a48-bee3-0d4de5c9b69a",
+            "name": "Helado casero de coco",
+            "price": "750",
+            "qty": 2
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "5558e72f-44b4-4ead-92d6-5e5bc5a1d34f",
+      "type": "SALE",
+      "date": "2026-03-03T00:46:07.152Z",
+      "amount": 1200,
+      "description": "Venta: Aguadulce con leche (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "110e3dde-c7ba-45ff-937b-1e2488c25e3f",
+            "name": "Aguadulce con leche",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "c5d24053-f6a8-4523-befb-aa6d918ccb3e",
+      "type": "SALE",
+      "date": "2026-03-03T00:45:45.569Z",
+      "amount": 1500,
+      "description": "Venta: Chocolate (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "cfc7f3cc-b179-4d96-9bc1-c5cb5c49b429",
+            "name": "Chocolate",
+            "price": "1500",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "f90f42bb-6445-4385-8b54-05c7a6016773",
+      "type": "SALE",
+      "date": "2026-03-03T00:45:27.437Z",
+      "amount": 1200,
+      "description": "Venta: Gallo picadillo de papa (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1e1c4199-1208-46af-8bbf-1af95b72740c",
+            "name": "Gallo picadillo de papa",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "4a328de2-b5ee-45c6-bb2a-66572f5bc37b",
+      "type": "SALE",
+      "date": "2026-03-03T00:45:08.718Z",
+      "amount": 1200,
+      "description": "Venta: Gallo salchicón sin chile (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1316b453-b587-4215-9a0a-00f6a49a1387",
+            "name": "Gallo salchicón sin chile",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "55f6a515-e094-4625-ad58-27eac94e01ff",
+      "type": "SALE",
+      "date": "2026-03-03T00:44:48.018Z",
+      "amount": 2400,
+      "description": "Venta: Café con leche (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "fe974174-3a06-422d-8b0a-6960407adfe9",
+            "name": "Café con leche",
+            "price": "1200",
+            "qty": 2
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "9f9b0027-59be-4f89-89ab-38ab2f666bc6",
+      "type": "SALE",
+      "date": "2026-03-03T00:44:08.054Z",
+      "amount": 3300,
+      "description": "Venta: Copa de frutas con helado (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "02a589ca-51ea-438d-88ee-490575e37ce3",
+            "name": "Copa de frutas con helado",
+            "price": "3300",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "75fdf617-e930-4bf2-9c6f-a611939e0c61",
+      "type": "SALE",
+      "date": "2026-03-03T00:41:26.535Z",
+      "amount": 1200,
+      "description": "Venta: Gallo torta de huevo con frijoles (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "9c94aa90-64be-4da4-8f60-cbfaddf33c04",
+            "name": "Gallo torta de huevo con frijoles",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "aba2c543-2e10-4103-932a-f26176e8b653",
+      "type": "SALE",
+      "date": "2026-03-03T00:41:07.236Z",
+      "amount": 3600,
+      "description": "Venta: Gallo salchicón chile (x3)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "f01fca5a-20a2-49c2-bd7f-057062931145",
+            "name": "Gallo salchicón chile",
+            "price": "1200",
+            "qty": 3
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "0db1548f-227d-40a4-956d-3e579f14e9b0",
+      "type": "SALE",
+      "date": "2026-03-03T00:40:11.118Z",
+      "amount": 1200,
+      "description": "Venta: Leche corriente (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d99d64bd-7c41-4385-baa6-82ceec2a0414",
+            "name": "Leche corriente",
+            "price": "1200",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "c7a0a2ef-47b2-46a5-9de4-1826decf5075",
+      "type": "SALE",
+      "date": "2026-03-03T00:39:53.119Z",
+      "amount": 500,
+      "description": "Venta: Gin (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "2184a85d-3f1d-4456-98c9-8dc4ddfc4ac2",
+            "name": "Gin",
+            "price": "500",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "9a6fecde-9d4a-4e28-89f2-4f658ed5dcd7",
+      "type": "PURCHASE",
+      "date": "2026-03-02T17:44:13.591Z",
+      "amount": 900,
+      "description": "Compra Inventario: Piña (unidad) (x1)",
+      "details": {
+        "itemName": "Piña (unidad)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "MasXmenos"
+      }
+    },
+    {
+      "id": "4dc7c677-af81-4e3a-ab25-75067c5a1426",
+      "type": "PURCHASE",
+      "date": "2026-03-02T17:43:28.345Z",
+      "amount": 1,
+      "description": "Compra Inventario: Gelatina (paquete 1081 gramos) (x0.6)",
+      "details": {
+        "itemName": "Gelatina (paquete 1081 gramos)",
+        "quantity": 0.6,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Mayca"
+      }
+    },
+    {
+      "id": "1d367704-6dd0-48b8-928d-1466bc271a2b",
+      "type": "PRODUCTION",
+      "date": "2026-03-02T17:25:35.049Z",
+      "amount": 1907.5,
+      "description": "Cocina: 16x Helado de coco (unidad) (usando 1x Leche normal 1 L (caja), 0.25x Coco rallado (paquete 500 g), 0.225x Azucar (paquete 2 kg), 16x Paletas para conos (unidad))",
+      "cogs": 1907.5,
+      "details": {
+        "outputName": "Helado de coco (unidad)",
+        "outputQty": 16,
+        "ingredients": [
+          {
+            "item": {
+              "id": "4614b82d-fc9a-4483-bbdc-e4f5eafa07ab",
+              "name": "Leche normal 1 L (caja)",
+              "cost": 749,
+              "stock": 10
+            },
+            "qty": "1"
+          },
+          {
+            "item": {
+              "id": "0bec4db1-65ae-44fb-8e78-04b1c2593e8b",
+              "name": "Coco rallado (paquete 500 g)",
+              "cost": 3000,
+              "stock": 0.5
+            },
+            "qty": "0.25"
+          },
+          {
+            "item": {
+              "id": "60062739-3821-4e4c-bc71-ad87c5744977",
+              "name": "Azucar (paquete 2 kg)",
+              "cost": 1460,
+              "stock": 0.925,
+              "batches": [
+                {
+                  "id": "7bf2196e-11b3-4201-b257-2c016458f451",
+                  "date": "2026-03-02T11:31:39.088Z",
+                  "stock": 0.925,
+                  "cost": 1460
+                }
+              ]
+            },
+            "qty": "0.225"
+          },
+          {
+            "item": {
+              "id": "8573bfb0-74c8-4b9a-843d-e5b4c4b3392a",
+              "name": "Paletas para conos (unidad)",
+              "cost": 5,
+              "stock": 95,
+              "batches": [
+                {
+                  "id": "legacy-bb150ddf-dd95-44be-b00b-b29607fe2575",
+                  "date": "1970-01-01T00:00:00.000Z",
+                  "cost": 5,
+                  "stock": 95
+                }
+              ]
+            },
+            "qty": "16"
+          }
+        ]
+      }
+    },
+    {
+      "id": "493db458-ceab-4f28-9a9f-a16e2429bc8c",
+      "type": "PRODUCTION",
+      "date": "2026-03-02T12:54:42.672Z",
+      "amount": 674.5,
+      "description": "Cocina: 11x Helado de frutas (unidad) (usando 0.25x Piña (unidad), 2x Banano (unidad), 0.25x Sirope (botella 700 mL), 0.075x Azucar (paquete 2 kg), 11x Paletas para conos (unidad))",
+      "cogs": 674.5,
+      "details": {
+        "outputName": "Helado de frutas (unidad)",
+        "outputQty": 11,
+        "ingredients": [
+          {
+            "item": {
+              "id": "f1a1c803-9fef-4949-8ec3-9c2b7a739468",
+              "name": "Piña (unidad)",
+              "cost": 900,
+              "stock": 0.25
+            },
+            "qty": "0.25"
+          },
+          {
+            "item": {
+              "id": "0c8381a4-4682-4adc-aa2c-e4d7ad74892a",
+              "name": "Banano (unidad)",
+              "cost": 50,
+              "stock": 7
+            },
+            "qty": "2"
+          },
+          {
+            "item": {
+              "id": "f6cd2ece-156e-4c2a-94e5-fd3d8f46ae1e",
+              "name": "Sirope (botella 700 mL)",
+              "cost": 740,
+              "stock": 1
+            },
+            "qty": "0.25"
+          },
+          {
+            "item": {
+              "id": "60062739-3821-4e4c-bc71-ad87c5744977",
+              "name": "Azucar (paquete 2 kg)",
+              "cost": 1460,
+              "stock": 1,
+              "batches": [
+                {
+                  "id": "legacy-513d787e-32e7-4477-a9d9-3afd0b2ad72c",
+                  "date": "1970-01-01T00:00:00.000Z",
+                  "cost": 1469,
+                  "stock": 0
+                },
+                {
+                  "id": "7bf2196e-11b3-4201-b257-2c016458f451",
+                  "date": "2026-03-02T11:31:39.088Z",
+                  "stock": 1,
+                  "cost": 1460
+                }
+              ]
+            },
+            "qty": "0.075"
+          },
+          {
+            "item": {
+              "id": "8573bfb0-74c8-4b9a-843d-e5b4c4b3392a",
+              "name": "Paletas para conos (unidad)",
+              "cost": 5,
+              "stock": 106
+            },
+            "qty": "11"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9dcfffde-9a72-446f-8d08-bc9a73ccbcd6",
+      "type": "PURCHASE",
+      "date": "2026-03-02T11:31:39.088Z",
+      "amount": 1460,
+      "description": "Compra Inventario: Azucar (paquete 2 kg) (x1)",
+      "details": {
+        "itemName": "Azucar (paquete 2 kg)",
+        "quantity": 1,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "MaxiPalí"
+      }
+    },
+    {
+      "id": "69d72bba-0f7f-4867-bf4d-03950ae9de15",
+      "type": "INITIALIZATION",
+      "date": "2026-03-02T11:29:40.824Z",
+      "amount": 1460,
+      "description": "Aporte de Capital (Banco)"
+    },
+    {
+      "id": "129076fe-2a5f-4756-b830-558e8909d117",
+      "type": "EXPENSE",
+      "date": "2026-03-02T02:36:22.023Z",
+      "amount": 40000,
+      "description": "Gasto (Salario Nydia)",
+      "details": {
+        "typeName": "Salario Nydia",
+        "method": "caja_chica",
+        "detail": "Salario enero-febrero",
+        "provName": "Nydia"
+      }
+    },
+    {
+      "id": "86f696a2-9831-4186-845a-8c4f6002bf83",
+      "type": "INITIALIZATION",
+      "date": "2026-03-02T02:26:41.688Z",
+      "amount": 400,
+      "description": "Aporte de Capital (Banco)"
+    },
+    {
+      "id": "068477ee-0b44-4dfe-af54-8fcba9ca6672",
+      "type": "PURCHASE",
+      "date": "2026-03-02T02:22:40.874Z",
+      "amount": 3200,
+      "description": "Compra Inventario: Helado de frutas (unidad) (x7)",
+      "details": {
+        "itemName": "Helado de frutas (unidad)",
+        "quantity": 7,
+        "method": "banco",
+        "type": "inventory",
+        "providerName": "Nydia"
+      }
+    },
+    {
+      "id": "b356f2ee-6223-43b7-af89-5df5eb93c2a3",
+      "type": "SALE",
+      "date": "2026-03-02T02:01:08.873Z",
+      "amount": 3000,
+      "description": "Venta: Copa de frutas sin helado (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "7ab9d83d-3637-40a2-bd37-c55d377d0000",
+            "name": "Copa de frutas sin helado",
+            "price": "3000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "1731184c-7bb2-492d-b317-7ef6b9a4027d",
+      "type": "SALE",
+      "date": "2026-03-02T02:00:50.973Z",
+      "amount": 1000,
+      "description": "Venta: Aguadulce (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "90efc0c1-2a99-4660-89bc-860417f09d27",
+            "name": "Aguadulce",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "0cec1209-8d9f-465f-8add-c4a99fec3908",
+      "type": "SALE",
+      "date": "2026-03-02T02:00:17.273Z",
+      "amount": 2400,
+      "description": "Venta: Gallo picadillo de papa (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1e1c4199-1208-46af-8bbf-1af95b72740c",
+            "name": "Gallo picadillo de papa",
+            "price": "1200",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "fdb26073-b688-471f-bf53-bb5230d3b5f5",
+      "type": "SALE",
+      "date": "2026-03-02T01:58:57.824Z",
+      "amount": 3000,
+      "description": "Venta: Crepa de pollo (Gabriel) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "852834a0-294b-4d49-84f4-800b1228591c",
+            "name": "Crepa de pollo (Gabriel)",
+            "price": "3000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "02439129-3845-4cc3-8a3d-113a1a29f581",
+      "type": "SALE",
+      "date": "2026-03-02T01:57:26.139Z",
+      "amount": 1000,
+      "description": "Venta: Queque casero rebajado (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "a185a16b-7bca-4015-8941-83f831077739",
+            "name": "Queque casero rebajado",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "f2b1a7ae-703a-46fd-ae85-ab44c0044eb0",
+      "type": "SALE",
+      "date": "2026-03-02T01:56:06.772Z",
+      "amount": 4800,
+      "description": "Venta: Queque casero (x4)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "0c0d0c0d-32ff-4639-88d4-0138a07b738c",
+            "name": "Queque casero",
+            "price": "1200",
+            "qty": 4
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "f6c4f08d-ea4a-47b9-b5c6-bd8fc0979e0b",
+      "type": "SALE",
+      "date": "2026-03-02T01:46:46.508Z",
+      "amount": 1000,
+      "description": "Venta: Cono una bola (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "d2fcbcb6-ee5c-4126-8ac4-c0545388df6e",
+            "name": "Cono una bola",
+            "price": "500",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "0b0b2f67-f1c3-4342-9e66-05e0a16fdebf",
+      "type": "SALE",
+      "date": "2026-03-02T01:46:05.456Z",
+      "amount": 1000,
+      "description": "Venta: Cono dos bolas (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "9746cc8c-6a94-4379-9734-2cbdafd36b40",
+            "name": "Cono dos bolas",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "62ee3fee-95a5-46ce-8ec1-dc8271d3e942",
+      "type": "SALE",
+      "date": "2026-03-02T01:45:43.373Z",
+      "amount": 6000,
+      "description": "Venta: Helado casero de coco (x8)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "76c84351-677e-4a48-bee3-0d4de5c9b69a",
+            "name": "Helado casero de coco",
+            "price": "750",
+            "qty": 8
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "2b088044-e993-496d-ad49-3df39758768d",
+      "type": "SALE",
+      "date": "2026-03-02T01:43:33.475Z",
+      "amount": 1900,
+      "description": "Venta: Paleta cero (x2)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "c617c171-3407-4bef-9926-ff0b76ce89cb",
+            "name": "Paleta cero",
+            "price": "950",
+            "qty": 2
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "0948a401-8438-418c-944a-aa54d05b8ae6",
+      "type": "SALE",
+      "date": "2026-03-02T01:40:10.438Z",
+      "amount": 1000,
+      "description": "Venta: Cono dos bolas (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "9746cc8c-6a94-4379-9734-2cbdafd36b40",
+            "name": "Cono dos bolas",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "caja_chica"
+      }
+    },
+    {
+      "id": "6980763f-64d0-4581-9994-ba39abc0ea4f",
+      "type": "SALE",
+      "date": "2026-03-02T01:39:26.672Z",
+      "amount": 1800,
+      "description": "Venta: Huevos (1/2 cartón) (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "1178f607-ccb3-4230-891b-e77949d1a9b2",
+            "name": "Huevos (1/2 cartón)",
+            "price": "1800",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "4aacaf85-9650-4664-acc2-0bb402a951ee",
+      "type": "SALE",
+      "date": "2026-03-02T01:38:59.289Z",
+      "amount": 2250,
+      "description": "Venta: Helado casero de coco (x3)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "76c84351-677e-4a48-bee3-0d4de5c9b69a",
+            "name": "Helado casero de coco",
+            "price": "750",
+            "qty": 3
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "cc75b41e-c5fa-4cf5-a3ff-b01069ea95aa",
+      "type": "SALE",
+      "date": "2026-03-02T01:33:11.356Z",
+      "amount": 1000,
+      "description": "Venta: Cono dos bolas (x1)",
+      "cogs": 0,
+      "details": {
+        "cart": [
+          {
+            "id": "9746cc8c-6a94-4379-9734-2cbdafd36b40",
+            "name": "Cono dos bolas",
+            "price": "1000",
+            "qty": 1
+          }
+        ],
+        "method": "banco"
+      }
+    },
+    {
+      "id": "cf3861de-6fe9-43ff-83dc-57d40819b255",
+      "type": "PURCHASE",
+      "date": "2026-03-02T01:28:01.124Z",
+      "amount": 400,
+      "description": "Compra Inventario: Helado de frutas (unidad) (x8)",
+      "details": {
+        "itemName": "Helado de frutas (unidad)",
+        "quantity": 8,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Nydia"
+      }
+    },
+    {
+      "id": "0e5988fd-1923-4dee-8023-e5c7e63862d9",
+      "type": "INITIALIZATION",
+      "date": "2026-03-02T01:27:23.259Z",
+      "amount": 3200,
+      "description": "Aporte de Capital (Caja Chica)"
+    },
+    {
+      "id": "f2c78369-fa32-4764-9181-a89cd28526cb",
+      "type": "PURCHASE",
+      "date": "2026-03-02T01:24:04.074Z",
+      "amount": 1800,
+      "description": "Compra Inventario: Fresas (caja 400 g) (x1)",
+      "details": {
+        "itemName": "Fresas (caja 400 g)",
+        "quantity": 1,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Lucía"
+      }
+    },
+    {
+      "id": "831dabda-2c09-4ae7-962f-4476eda3270f",
+      "type": "EXPENSE",
+      "date": "2026-03-02T01:18:56.357Z",
+      "amount": 40000,
+      "description": "Gasto (Alquiler)",
+      "details": {
+        "typeName": "Alquiler",
+        "method": "caja_chica",
+        "detail": "Alquiler marzo",
+        "provName": "Tía Olga"
+      }
+    },
+    {
+      "id": "4607f1bf-1976-498b-ac39-4c71a72c88e4",
+      "type": "EXPENSE",
+      "date": "2026-03-02T01:18:31.324Z",
+      "amount": 5000,
+      "description": "Gasto (Servicios)",
+      "details": {
+        "typeName": "Servicios",
+        "method": "caja_chica",
+        "detail": "Servicios de agua y luz",
+        "provName": "Tía Olga"
+      }
+    },
+    {
+      "id": "a6f980a7-c495-4620-a293-788f36bc7ff1",
+      "type": "PURCHASE",
+      "date": "2026-03-02T01:17:37.708Z",
+      "amount": 9750,
+      "description": "Compra Inventario: Huevos (1/2 cartón) (x6.5)",
+      "details": {
+        "itemName": "Huevos (1/2 cartón)",
+        "quantity": 6.5,
+        "method": "caja_chica",
+        "type": "inventory",
+        "providerName": "Jonatan"
+      }
+    },
+    {
+      "id": "db380e6c-a1f1-4150-900a-b26b2719d04b",
+      "type": "INITIALIZATION",
+      "date": "2026-03-02T01:15:54.609Z",
+      "amount": 9750,
+      "description": "Aporte de Capital (Caja Chica)"
+    },
+    {
+      "id": "8dc8a460-3f5e-45aa-8df6-ad5821b82376",
+      "type": "EXPENSE",
+      "date": "2026-03-02T01:15:06.157Z",
+      "amount": 12500,
+      "description": "Gasto (Publicidad)",
+      "details": {
+        "typeName": "Publicidad",
+        "method": "banco",
+        "detail": "Publicidad",
+        "provName": "META"
+      }
+    },
+    {
+      "id": "b9541c35-aa5c-4fb9-868a-df1fdde1de6a",
+      "type": "INITIALIZATION",
+      "date": "2026-03-01T21:46:45.495Z",
+      "amount": 12500,
+      "description": "Aporte de Capital (Banco)"
+    }
+  ],
+  "assets": [
+    {
+      "id": "09c7b894-2f44-4e6b-898c-a9fb280f1aee",
+      "name": "Flores y maceteros decorativos",
+      "value": 17500,
+      "quantity": 1
+    },
+    {
+      "id": "4fadae56-dcf8-4263-9e2f-16ee0a4e65a8",
+      "name": "Tira de bombillos led para exteriors",
+      "value": 18500,
+      "quantity": 1
+    },
+    {
+      "id": "1e7bee36-7aee-437d-9b56-9f80020d84f9",
+      "name": "Tira de bombillos led para exteriors (x1)",
+      "value": 18500,
+      "quantity": 1
+    },
+    {
+      "id": "654007fc-4115-4bf1-9196-fc427feacdf6",
+      "name": "Crepera",
+      "value": 31000,
+      "quantity": 1
+    },
+    {
+      "id": "e34e363a-f176-4fa6-a77d-a934fe8de022",
+      "name": "Dispensador de aderezo",
+      "value": 475,
+      "quantity": 1
+    },
+    {
+      "id": "7d3ecbad-677b-4f1f-8638-d7d545a368d3",
+      "name": "Dispensador de aderezo",
+      "value": 475,
+      "quantity": 1
+    },
+    {
+      "id": "73cc81c8-50a3-4c80-9776-902681792edc",
+      "name": "Bandeja de bambú",
+      "value": 4500,
+      "quantity": 1
+    },
+    {
+      "id": "331e673e-9a3e-4b4c-8bce-d2fd06fbabcc",
+      "name": "Pinza acero inoxidable",
+      "value": 1000,
+      "quantity": 1
+    },
+    {
+      "id": "e58491ae-7ca2-4ad8-b2a5-f55a8e8dd27f",
+      "name": "5 copas helado",
+      "value": 4625,
+      "quantity": 1
+    },
+    {
+      "id": "cdcc68a9-873e-467b-9742-c72c9e9a2fa5",
+      "name": "caja plástica 24 L",
+      "value": 3725,
+      "quantity": 1
+    },
+    {
+      "id": "b30a7959-0afe-49a1-8d5d-3bae7bbf2e88",
+      "name": "Sartén eléctrico",
+      "value": 24500,
+      "quantity": 1
+    },
+    {
+      "id": "e57fc8b2-f00a-41b9-89ef-f1d06109aaaa",
+      "name": "Hervidor eléctrico",
+      "value": 9500,
+      "quantity": 1
+    },
+    {
+      "id": "e5b341a6-03cd-4bf9-90d7-9f6591ef0fff",
+      "name": "Caja pequeña",
+      "value": 3000,
+      "quantity": 1
+    },
+    {
+      "id": "7fa1c4c7-43c0-428e-978a-cbd06ca9728f",
+      "name": "2 Cerca planta artificial",
+      "value": 11900,
+      "quantity": 1
+    },
+    {
+      "id": "773a3827-0148-46dc-b220-8cb20a03ec77",
+      "name": "Molenillo",
+      "value": 850,
+      "quantity": 1
+    },
+    {
+      "id": "c579d4ef-bcb7-4ee2-aa14-9edf7b9d403e",
+      "name": "Espátula silicone",
+      "value": 650,
+      "quantity": 1
+    },
+    {
+      "id": "eb680a47-0076-481a-aa25-e2002599e8d4",
+      "name": "Basurero Plásticos",
+      "value": 4950,
+      "quantity": 1
+    },
+    {
+      "id": "1938ffaa-4c35-4c50-98bc-33085080890e",
+      "name": "Tenedores",
+      "value": 1650,
+      "quantity": 1
+    },
+    {
+      "id": "de59aad1-4ab6-4309-8bcc-e638a43ffc1e",
+      "name": "Copa plastica",
+      "value": 850,
+      "quantity": 1
+    },
+    {
+      "id": "101f6d7c-74ec-4e4f-a829-eed5413a60c7",
+      "name": "2 Pizarrras",
+      "value": 7900,
+      "quantity": 1
+    },
+    {
+      "id": "189c7d17-2691-4452-a6dc-f60ab32af0a1",
+      "name": "10 platos cerámica",
+      "value": 9750,
+      "quantity": 1
+    },
+    {
+      "id": "68c0be8f-1e6d-4738-80a3-8e2f8f3a8de1",
+      "name": "2 tablas de picar",
+      "value": 3300,
+      "quantity": 1
+    },
+    {
+      "id": "06d89dc2-fe9d-4a0a-91be-572643fcbb8d",
+      "name": "Espejo",
+      "value": 5500,
+      "quantity": 1
+    },
+    {
+      "id": "8331aba5-7f7c-49c7-862a-ee8cbab28998",
+      "name": "Cepillo cocina",
+      "value": 1328,
+      "quantity": 1
+    },
+    {
+      "id": "3b2a73a9-44c0-434c-85b1-86892ef3ee35",
+      "name": "Pinza aluminio",
+      "value": 2655,
+      "quantity": 1
+    },
+    {
+      "id": "08b0a739-19f5-4079-a4f1-90883ddca737",
+      "name": "Tijera Cocina",
+      "value": 3800,
+      "quantity": 1
+    },
+    {
+      "id": "2dd14d18-c24e-494b-88cd-d29f6a81c289",
+      "name": "Extensión eléctrica ",
+      "value": 11900,
+      "quantity": 1
+    },
+    {
+      "id": "11dba1ad-3fed-4286-ac50-c92e2854f222",
+      "name": "Escoba",
+      "value": 1700,
+      "quantity": 1
+    },
+    {
+      "id": "81cd006f-3afe-4e40-83a0-572138bf47c7",
+      "name": "Bombillo Ledecour 300 K",
+      "value": 1750,
+      "quantity": 1
+    },
+    {
+      "id": "20c43294-8b29-4b9d-b3b8-48d5065a9752",
+      "name": "Cinta doble cara",
+      "value": 3000,
+      "quantity": 1
+    },
+    {
+      "id": "429f2a41-6186-48ba-bfe0-48a74b02a877",
+      "name": "6 cubiertos",
+      "value": 2000,
+      "quantity": 1
+    },
+    {
+      "id": "8abb419b-d40a-4e77-9f8f-df8913d33f0d",
+      "name": "Dispensador jabón",
+      "value": 1500,
+      "quantity": 1
+    },
+    {
+      "id": "5952c055-a646-4836-bdb2-7340472f74fd",
+      "name": "Gazas 15 mm",
+      "value": 1500,
+      "quantity": 1
+    },
+    {
+      "id": "d4230406-b513-4004-8a39-34a0091064a6",
+      "name": "Basurero azul",
+      "value": 5500,
+      "quantity": 1
+    },
+    {
+      "id": "f351d734-a65c-470d-a091-db1a1a3380c1",
+      "name": "Frasco vidrio conos",
+      "value": 3500,
+      "quantity": 1
+    },
+    {
+      "id": "ebfdaca9-bf4b-486b-9c38-4fb7ec64b1f8",
+      "name": "Cucharas grandes",
+      "value": 850,
+      "quantity": 1
+    },
+    {
+      "id": "7d631d39-745b-47c1-838e-ed5e28babce8",
+      "name": "1 Cerca planta artificial",
+      "value": 5950,
+      "quantity": 1
+    },
+    {
+      "id": "d175cc8d-0178-4060-a4da-8208abf41819",
+      "name": "Pizarra acrílica pequeña",
+      "value": 1950,
+      "quantity": 1
+    },
+    {
+      "id": "3294a37f-0c10-40bd-b9d5-d58c18b07c78",
+      "name": " 3 Tazas de zorro para niños",
+      "value": 5100,
+      "quantity": 1
+    },
+    {
+      "id": "22781ece-99a3-4b35-b07f-8d5681008466",
+      "name": "Calculadora",
+      "value": 3950,
+      "quantity": 1
+    },
+    {
+      "id": "cb3cb9af-8572-43cb-8143-06831885d830",
+      "name": "5 platos de vidrio pequeños transparentes",
+      "value": 1750,
+      "quantity": 1
+    },
+    {
+      "id": "edbd7edf-dc89-4050-8a1b-5cd194c71fd2",
+      "name": "1 taza medida vidrio",
+      "value": 1650,
+      "quantity": 1
+    },
+    {
+      "id": "c1149b11-a0cd-4333-95ff-fe6cdb8ba78f",
+      "name": "6 tazas con plato blancas",
+      "value": 4950,
+      "quantity": 1
+    },
+    {
+      "id": "2c6c9a95-50e1-4864-8126-7cdc47e1f32a",
+      "name": "Caja dinero",
+      "value": 8000,
+      "quantity": 1
+    },
+    {
+      "id": "72a7fba4-14f0-498c-a4f8-61691441abcd",
+      "name": "Salero",
+      "value": 500,
+      "quantity": 1
+    },
+    {
+      "id": "8a67fe9f-34b1-42c0-87cf-11ae731fe3f5",
+      "name": "Espátulas",
+      "value": 800,
+      "quantity": 1
+    },
+    {
+      "id": "d7f7f198-e652-4a7c-9217-b5b9b621ce1d",
+      "name": "Quequera",
+      "value": 14420,
+      "quantity": 1
+    },
+    {
+      "id": "a0a34100-9fcd-4a43-b4ac-fb29b0419d66",
+      "name": "Flores y maceteros decorativos ",
+      "value": 16300,
+      "quantity": 1
+    },
+    {
+      "id": "abcc4a07-100b-42b0-9a7e-403107ae8fd8",
+      "name": "Curso manipulación de alimentos Nydia",
+      "value": 25000,
+      "quantity": 1
+    },
+    {
+      "id": "4f2e7993-aa18-4701-84cd-8dd375e8710a",
+      "name": "2 Salseros",
+      "value": 1400,
+      "quantity": 1
+    },
+    {
+      "id": "1cadcc4e-d8b8-44c5-9d92-2d715890da9d",
+      "name": "3 jarras infantiles gato",
+      "value": 5850,
+      "quantity": 1
+    },
+    {
+      "id": "ecb90a13-82d0-4a61-8a15-2e33dfa30758",
+      "name": "2 sillas plegables negras",
+      "value": 28000,
+      "quantity": 1
+    },
+    {
+      "id": "a7829287-2c45-4205-8ff3-31a1d999ddc7",
+      "name": "Tenedores",
+      "value": 1500,
+      "quantity": 1
+    },
+    {
+      "id": "88035d97-deee-46aa-8eb7-cbf79758e2fc",
+      "name": "Bandeja azafate",
+      "value": 2650,
+      "quantity": 1
+    },
+    {
+      "id": "55860f1d-9830-4f4f-899d-1fb52eea9bff",
+      "name": "Piliots",
+      "value": 5000,
+      "quantity": 1
+    },
+    {
+      "id": "bcf9f66a-7c03-48a0-adb0-f767dc1e56d2",
+      "name": "Plato de aluminio para crepas",
+      "value": 4200,
+      "quantity": 1
+    },
+    {
+      "id": "53e0db9f-f9dc-4673-99f4-ae178675ad5f",
+      "name": "Tijeras multilámina",
+      "value": 2000,
+      "quantity": 1
+    },
+    {
+      "id": "2be25be9-873d-4bfe-aac2-ce27bb70505c",
+      "name": "Suculentas decorativas",
+      "value": 8000,
+      "quantity": 1
+    },
+    {
+      "id": "26070511-faca-423c-a36c-85db837dafad",
+      "name": "Agarraderas puertas",
+      "value": 2000,
+      "quantity": 1
+    },
+    {
+      "id": "62bd9b05-a6d0-46b9-b0c2-41c799d41baa",
+      "name": "2 tablas para picar estilos",
+      "value": 3000,
+      "quantity": 1
+    }
+  ],
+  "documentacion_contable": {
+    "_meta": {
+      "fecha_generacion": "2026-03-10T17:31:36.324Z",
+      "descripcion": "Documentación oficial de la estructura y mecánicas contables del sistema El Jardín ERP."
+    },
+    "estructura_cuentas": {
+      "activos": {
+        "definicion": "Recursos controlados por la empresa como resultado de eventos pasados, de los que se esperan beneficios económicos futuros.",
+        "cuentas": [
+          {
+            "nombre": "Caja Chica",
+            "tipo": "Efectivo",
+            "naturaleza": "Deudora"
+          },
+          {
+            "nombre": "Bancos",
+            "tipo": "Efectivo",
+            "naturaleza": "Deudora"
+          },
+          {
+            "nombre": "Inventario",
+            "tipo": "Activo Circulante",
+            "naturaleza": "Deudora",
+            "nota": "Valuado mediante el método de Costo Promedio y descargado vía FIFO. Bajo el sistema de Inventario Periódico, no se descarga automáticamente en cada venta, sino mediante Tomas Físicas u operaciones de Producción."
+          },
+          {
+            "nombre": "Activo Fijo",
+            "tipo": "Activo No Circulante",
+            "naturaleza": "Deudora",
+            "nota": "Mobiliario, equipo, remodelaciones."
+          }
+        ]
+      },
+      "pasivos": {
+        "definicion": "Obligaciones presentes de la empresa, surgidas de eventos pasados, al vencimiento de las cuales espera desprenderse de recursos.",
+        "cuentas": [
+          {
+            "nombre": "Cuentas por Pagar",
+            "tipo": "Pasivo Circulante",
+            "naturaleza": "Acreedora",
+            "nota": "Pre-configurado para futuras integraciones."
+          }
+        ]
+      },
+      "patrimonio": {
+        "definicion": "La parte residual de los activos de la empresa, una vez deducidos todos sus pasivos.",
+        "cuentas": [
+          {
+            "nombre": "Capital Inicial",
+            "tipo": "Patrimonio",
+            "naturaleza": "Acreedora",
+            "nota": "Fondo de apertura al inicializar el negocio."
+          },
+          {
+            "nombre": "Utilidades Retenidas / Ejercicio",
+            "tipo": "Patrimonio",
+            "naturaleza": "Acreedora",
+            "nota": "Obtenido mediante: Ventas Netas - Costos - Gastos Operativos."
+          }
+        ]
+      },
+      "resultados": {
+        "definicion": "Cuentas nominales utilizadas para determinar el estado de ganancias y pérdidas.",
+        "cuentas": [
+          {
+            "nombre": "Ventas (Ingresos Totales)",
+            "tipo": "Ingreso",
+            "naturaleza": "Acreedora"
+          },
+          {
+            "nombre": "Costos (Costo de Ventas / COGS)",
+            "tipo": "Egreso",
+            "naturaleza": "Deudora",
+            "nota": "Bajo el sistema Periódico, este costo se registra exclusivamente a través de los ajustes por consumo o pérdida detectados en las Tomas Físicas de inventario, y no en el momento de la venta."
+          },
+          {
+            "nombre": "Gastos (Operativos)",
+            "tipo": "Egreso",
+            "naturaleza": "Deudora",
+            "nota": "Servicios, gastos básicos, devaluación de activos y faltantes de efectivo."
+          }
+        ]
+      }
+    },
+    "mecanicas_operativas": {
+      "ventas": "Cuando se realiza una venta, aumenta la liquidez (Caja/Bancos) y aumentan los Ingresos (Ventas). Bajo el sistema de Inventario Periódico, la venta se trata como 100% ingreso puro en el momento; NO disminuye el inventario automáticamente ni registra Costos (COGS) hasta que se realice una Toma Física.",
+      "compras_inventario": "Al adquirir artículos de inventario, disminuye liquidez y aumenta la cuenta de Inventario. Se crea un lote con fecha y costo unitario para posterior extracción FIFO. No afecta utilidades hasta ser consumido.",
+      "compras_activos": "Al adquirir activo físico, disminuye liquidez y aumenta Activo Fijo.",
+      "gastos": "Un pago directo (Luz, Agua, etc.) desplaza liquidez a la cuenta de Gastos Operativos.",
+      "produccion_ensamblaje": "Al cocinar o ensamblar, se descuentan artículos del inventario mediante FIFO para calcular el Costo Exacto Consumido. Automáticamente se crea un nuevo Lote del producto terminado en Inventario equivalente a ese costo exacto, transfiriendo valor internamente sin impactar liquidez ni resultados.",
+      "auditorias_y_ajustes": {
+        "caja_bancos": "Diferencias de efectivo físico vs lógico. Los faltantes se envían inmediatamente al Gasto. Los sobrantes sorpresivos se ajustan y acreditan como Ingresos adicionales.",
+        "inventario": "Toma Física (conteo de existencias). Es el corazón del Sistema Periódico: al reportar que faltan unidades (ya sea porque se vendieron o se dañaron), el sistema extrae esos lotes usando precio FIFO y envía ese valor acumulado a la cuenta de Costos (COGS), cuadrando finalmente la Ecuación Contable y ajustando la Ganancia Neta.",
+        "activos_fijos": "Una pérdida de valor del equipo (depreciación) ajusta el monto a la baja y se traslada al informe de Gastos Operativos."
+      }
+    }
+  }
+}

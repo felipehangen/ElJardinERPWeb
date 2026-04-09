@@ -1,0 +1,332 @@
+{
+    "_metadata": {
+        "version": "1.0.1",
+        "date": "2026-03-09T13:35:13-06:00",
+        "description": "El Jardin ERP Database Schema v1.0.1 — Adds FIFO inventory batches, soft-delete (hidden) on catalog entities, Assets as root collection with quantity, and extended Transaction fields (cogs, status, voidingTxId).",
+        "changes_from_v1.0.0": [
+            "NEW root field: assets (AssetItem[]) — fixed asset tracking",
+            "NEW type: InventoryBatch — FIFO cost layering per inventory item",
+            "InventoryItem: added optional batches (InventoryBatch[]) and hidden (boolean)",
+            "AssetItem: added required quantity (number)",
+            "Product: added optional inventoryItemId (string) and hidden (boolean)",
+            "Provider: added optional hidden (boolean)",
+            "ExpenseType: added optional hidden (boolean)",
+            "Transaction: added optional cogs (number), status (ACTIVE|VOIDED), voidingTxId (string)"
+        ],
+        "migration_notes": "All additions are optional fields or new optional root arrays. No destructive changes. Old v1.0.0 backups load safely — missing fields default to undefined/empty array via INITIAL_STATE."
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "DatabaseSchema",
+    "description": "Root state representing the entire local database structure of El Jardin ERP",
+    "type": "object",
+    "properties": {
+        "initialized": {
+            "type": "boolean"
+        },
+        "accounts": {
+            "$ref": "#/definitions/Accounts"
+        },
+        "inventory": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/InventoryItem"
+            }
+        },
+        "products": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Product"
+            }
+        },
+        "providers": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Provider"
+            }
+        },
+        "expenseTypes": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/ExpenseType"
+            }
+        },
+        "transactions": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Transaction"
+            }
+        },
+        "assets": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/AssetItem"
+            },
+            "description": "NEW in v1.0.1 — Fixed asset catalog (machinery, equipment, etc.)"
+        }
+    },
+    "required": [
+        "initialized",
+        "accounts",
+        "inventory",
+        "products",
+        "providers",
+        "expenseTypes",
+        "transactions",
+        "assets"
+    ],
+    "definitions": {
+        "Accounts": {
+            "type": "object",
+            "properties": {
+                "caja_chica": {
+                    "type": "number"
+                },
+                "banco": {
+                    "type": "number"
+                },
+                "inventario": {
+                    "type": "number",
+                    "description": "Sum of InventoryItem cost * stock"
+                },
+                "activo_fijo": {
+                    "type": "number",
+                    "description": "Sum of AssetItem cost"
+                },
+                "patrimonio": {
+                    "type": "number",
+                    "description": "Capital Social = Initial Assets - Initial Liabilities (0)"
+                },
+                "ventas": {
+                    "type": "number",
+                    "description": "Kept as optional for legacy data parsing, but unused in Ledger V2"
+                },
+                "costos": {
+                    "type": "number"
+                },
+                "gastos": {
+                    "type": "number"
+                },
+                "_isLedger": {
+                    "type": "boolean",
+                    "description": "Marker to know DB has been updated"
+                }
+            },
+            "required": [
+                "caja_chica",
+                "banco",
+                "inventario",
+                "activo_fijo",
+                "patrimonio"
+            ]
+        },
+        "InventoryBatch": {
+            "description": "NEW in v1.0.1 — FIFO cost layer for an inventory item",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "cost": {
+                    "type": "number"
+                },
+                "stock": {
+                    "type": "number",
+                    "description": "Remaining stock in this specific batch"
+                }
+            },
+            "required": [
+                "id",
+                "date",
+                "cost",
+                "stock"
+            ]
+        },
+        "InventoryItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "\"Leche 2L\""
+                },
+                "cost": {
+                    "type": "number",
+                    "description": "Weighted average cost (for UI display purposes)"
+                },
+                "stock": {
+                    "type": "number",
+                    "description": "Total stock (sum of all batches)"
+                },
+                "batches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/InventoryBatch"
+                    },
+                    "description": "NEW in v1.0.1 — Legacy items might not have this initially"
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "NEW in v1.0.1 — Soft-delete: hidden from operations but kept for accounting integrity"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "cost",
+                "stock"
+            ]
+        },
+        "AssetItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "\"Crepera\""
+                },
+                "value": {
+                    "type": "number",
+                    "description": "Total value (unitPrice * quantity)"
+                },
+                "quantity": {
+                    "type": "number",
+                    "description": "NEW in v1.0.1"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "value",
+                "quantity"
+            ]
+        },
+        "Product": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "inventoryItemId": {
+                    "type": "string",
+                    "description": "NEW in v1.0.1 — If linked to an inventory item"
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "NEW in v1.0.1"
+                }
+            },
+            "required": [
+                "id",
+                "name",
+                "price"
+            ]
+        },
+        "Provider": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "NEW in v1.0.1"
+                }
+            },
+            "required": [
+                "id",
+                "name"
+            ]
+        },
+        "ExpenseType": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "\"Luz\", \"Agua\""
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "NEW in v1.0.1"
+                }
+            },
+            "required": [
+                "id",
+                "name"
+            ]
+        },
+        "Transaction": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "PURCHASE",
+                        "SALE",
+                        "EXPENSE",
+                        "ADJUSTMENT",
+                        "PRODUCTION",
+                        "INITIALIZATION"
+                    ]
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "cogs": {
+                    "type": "number",
+                    "description": "NEW in v1.0.1 — Tracks exact Cost of Goods Sold for reporting correctly by month"
+                },
+                "details": {
+                    "type": "object",
+                    "description": "Any additional data or legacy structure"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ACTIVE",
+                        "VOIDED"
+                    ],
+                    "description": "NEW in v1.0.1 — Added for Reversions"
+                },
+                "voidingTxId": {
+                    "type": "string",
+                    "description": "NEW in v1.0.1 — Links this transaction to the reversing event"
+                }
+            },
+            "required": [
+                "id",
+                "date",
+                "type",
+                "amount",
+                "description"
+            ]
+        }
+    }
+}

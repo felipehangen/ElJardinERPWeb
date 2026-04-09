@@ -1,0 +1,12 @@
+3,5c3,5
+<     "appVersion": "1.0.0",
+<     "dbVersion": 1,
+<     "exportDate": "2026-03-10T17:31:36.324Z"
+---
+>     "appVersion": "1.0.1",
+>     "dbVersion": 2,
+>     "exportDate": "2026-03-10T23:55:38.106Z"
+3814c3814
+<       "fecha_generacion": "2026-03-10T17:31:36.324Z",
+---
+>       "fecha_generacion": "2026-03-10T23:55:38.106Z",
