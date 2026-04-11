@@ -1147,7 +1147,11 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
                                             )}
                                             placeholder={item.stock.toString()}
                                             value={counts[item.id] !== undefined ? counts[item.id] : ''}
-                                            onChange={e => setCounts({ ...counts, [item.id]: e.target.value })}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                if (val.includes('-')) return;
+                                                setCounts({ ...counts, [item.id]: val });
+                                            }}
                                         />
                                     </td>
                                 </tr>
@@ -1293,6 +1297,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
                                             value={qCounts[item.id] !== undefined ? qCounts[item.id] : ''}
                                             onChange={e => {
                                                 const newQty = e.target.value;
+                                                if (newQty.includes('-')) return;
                                                 const updates: any = { ...qCounts, [item.id]: newQty };
                                                 setQCounts(updates);
 
@@ -1315,7 +1320,11 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
                                             )}
                                             placeholder={(item.value || 0).toString()}
                                             value={counts[item.id] !== undefined ? counts[item.id] : ''}
-                                            onChange={e => setCounts({ ...counts, [item.id]: e.target.value })}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                if (val.includes('-')) return;
+                                                setCounts({ ...counts, [item.id]: val });
+                                            }}
                                         />
                                     </td>
                                 </tr>
@@ -1406,7 +1415,11 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                                 diffCaja !== 0 ? "border-amber-400 bg-amber-50" : "border-gray-200"
                             )}
                             value={counts.caja_chica}
-                            onChange={e => setCounts({ ...counts, caja_chica: e.target.value })}
+                            onChange={e => {
+                                const val = e.target.value;
+                                if (val.includes('-')) return;
+                                setCounts({ ...counts, caja_chica: val });
+                            }}
                         />
                     </div>
                 </div>
@@ -1423,7 +1436,11 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                                 diffBanco !== 0 ? "border-amber-400 bg-amber-50" : "border-gray-200"
                             )}
                             value={counts.banco}
-                            onChange={e => setCounts({ ...counts, banco: e.target.value })}
+                            onChange={e => {
+                                const val = e.target.value;
+                                if (val.includes('-')) return;
+                                setCounts({ ...counts, banco: val });
+                            }}
                         />
                     </div>
                 </div>
