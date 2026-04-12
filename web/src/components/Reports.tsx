@@ -74,25 +74,77 @@ export const Reports = () => {
         return assets.filter(a => a.name.toLowerCase().includes(searchAsset.toLowerCase()));
     }, [assets, searchAsset]);
 
+    const handleDownloadCSV = () => {
+        let csvContent = "";
+        let filename = "";
+
+        if (tab === 'financial') {
+            filename = "Estados_Financieros.csv";
+            csvContent += "ESTADO DE RESULTADOS\nConcepto,Monto (CRC)\n";
+            csvContent += `Ventas Totales,${financialData.ventas}\n`;
+            csvContent += `Costo de Ventas,-${financialData.costos}\n`;
+            csvContent += `Utilidad Bruta,${financialData.utilidadBruta}\n`;
+            csvContent += `Gastos Operativos,-${financialData.gastos}\n`;
+            csvContent += `Utilidad Operativa,${financialData.utilidadOperativa}\n`;
+            csvContent += `Otros Ingresos,${financialData.otrosIngresos}\n`;
+            csvContent += `Otros Gastos,-${financialData.otrosGastos}\n`;
+            csvContent += `Utilidad Neta,${financialData.utilidadNeta}\n\n`;
+
+            csvContent += "BALANCE DE SITUACION\nConcepto,Monto (CRC)\n";
+            csvContent += `Caja Chica,${accounts.caja_chica}\n`;
+            csvContent += `Bancos,${accounts.banco}\n`;
+            csvContent += `Inventario,${accounts.inventario}\n`;
+            csvContent += `Activo Fijo,${accounts.activo_fijo}\n`;
+            csvContent += `Total Activos,${totalActivos}\n`;
+            csvContent += `Cuentas por Pagar,0\n`;
+            csvContent += `Total Pasivos,0\n`;
+            csvContent += `Capital Inicial,${accounts.patrimonio}\n`;
+            csvContent += `Utilidad Acumulada,${utilidadNeta}\n`;
+            csvContent += `Total Patrimonio,${totalPatrimonio}\n`;
+        } else if (tab === 'inventory') {
+            filename = "Reporte_Inventario.csv";
+            csvContent += "Item,Stock,Costo Unitario (CRC),Valor Total (CRC)\n";
+            filteredInventory.forEach(i => {
+                csvContent += `"${i.name}",${i.stock},${i.cost},${i.stock * i.cost}\n`;
+            });
+            csvContent += `Total,,,${filteredInventory.reduce((acc, i) => acc + (i.stock * i.cost), 0)}\n`;
+        } else if (tab === 'assets') {
+            filename = "Reporte_Activos_Fijos.csv";
+            csvContent += "Activo,Cantidad,Valor Total (CRC)\n";
+            filteredAssets.forEach(a => {
+                csvContent += `"${a.name}",${a.quantity},${a.value}\n`;
+            });
+            csvContent += `Total,,${filteredAssets.reduce((acc, a) => acc + a.value, 0)}\n`;
+        } else if (tab === 'cash') {
+            filename = "Reporte_Caja_Bancos.csv";
+            csvContent += "Cuenta,Monto (CRC)\n";
+            csvContent += `Caja Chica,${accounts.caja_chica}\n`;
+            csvContent += `Bancos,${accounts.banco}\n`;
+            csvContent += `Total Disponibilidad,${accounts.caja_chica + accounts.banco}\n`;
+        }
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             {/* Header / Tabs */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-2xl font-bold text-gray-800">Reportes</h2>
                 <button
-                    onClick={() => window.print()}
+                    onClick={handleDownloadCSV}
                     className="flex items-center gap-2 px-4 py-2 bg-jardin-primary text-white rounded-xl font-bold hover:bg-jardin-primary-dark transition-all shadow-lg shadow-jardin-primary/20"
                 >
                     <Download size={18} />
-                    Descargar PDF
+                    Descargar CSV
                 </button>
-            </div>
-
-            {/* Print Header */}
-            <div className="hidden print:block text-center border-b pb-6 mb-8">
-                <div className="text-3xl font-black text-jardin-primary mb-1">El Jardín ERP</div>
-                <div className="text-sm text-gray-500 uppercase tracking-widest font-bold">Reporte Oficial de Operaciones</div>
-                <div className="text-xs text-gray-400 mt-2">{new Date().toLocaleString()}</div>
             </div>
 
             <div className="flex overflow-x-auto pb-2 gap-2 bg-gray-100 p-1 rounded-xl no-print">
@@ -370,26 +422,7 @@ export const Reports = () => {
                 </div>
             )}
 
-            {/* Transactions Tab */}
-            {/* Print Styling */}
-            <style>{`
-                @media print {
-                    .no-print { display: none !important; }
-                    body { background: white !important; margin: 0; padding: 0; }
-                    .animate-in { animation: none !important; transform: none !important; }
-                    main { margin: 0 !important; padding: 0 !important; }
-                    .max-w-6xl { max-width: 100% !important; }
-                    .Card { border: 1px solid #eee !important; box-shadow: none !important; border-top-width: 4px !important; }
-                    .bg-gray-50 { background-color: #f9fafb !important; -webkit-print-color-adjust: exact; }
-                    .bg-emerald-50 { background-color: #ecfdf5 !important; -webkit-print-color-adjust: exact; }
-                    .bg-blue-50 { background-color: #eff6ff !important; -webkit-print-color-adjust: exact; }
-                    .text-jardin-primary { color: #065f46 !important; -webkit-print-color-adjust: exact; }
-                    table { page-break-inside: auto; }
-                    tr { page-break-inside: avoid; page-break-after: auto; }
-                    thead { display: table-header-group; }
-                    tfoot { display: table-footer-group; }
-                }
-            `}</style>
+
         </div>
     );
 };
