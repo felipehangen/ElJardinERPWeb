@@ -401,4 +401,3 @@ const Row = ({ label, value, color, bold }: any) => (
     </div>
 );
 
-);
