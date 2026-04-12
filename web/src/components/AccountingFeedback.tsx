@@ -1,5 +1,5 @@
 import type { Accounts } from '../types';
-import { Modal, Button, cn } from './ui';
+import { Button, Modal, cn, formatMoney } from './ui';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface AccountingFeedbackProps {
@@ -22,7 +22,7 @@ export const AccountingFeedback = ({ isOpen, onClose, prev, curr, title, descrip
     };
 
     // Format currency
-    const fmt = (n: number) => `₡${n.toLocaleString()}`;
+    const fmt = (n: number) => `₡${formatMoney(n)}`;
 
     // Helper to render a change row
     const ChangeRow = ({ label, diff }: { label: string, diff: number }) => {

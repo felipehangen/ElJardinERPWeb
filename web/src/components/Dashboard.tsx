@@ -1,5 +1,6 @@
 import { useStore } from '../store/useStore';
 import { ShoppingCart, Utensils, DollarSign, ChefHat, ClipboardList } from 'lucide-react';
+import { formatMoney } from './ui';
 
 interface DashboardProps {
     onOpenModal: (type: string) => void;
@@ -39,7 +40,7 @@ export const Dashboard = ({ onOpenModal }: DashboardProps) => {
                 <div>
                     <h2 className="text-gray-400 font-bold uppercase tracking-widest text-sm mb-2">Ventas acumuladas en el mes de {monthName}</h2>
                     <div className="text-5xl font-black text-gray-800 tracking-tight">
-                        ₡{monthlySales.toLocaleString()}
+                        ₡{formatMoney(monthlySales)}
                     </div>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-green-50 flex items-center justify-center text-green-600">

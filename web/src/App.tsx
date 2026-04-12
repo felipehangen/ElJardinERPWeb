@@ -8,6 +8,7 @@ import { Catalogs } from './components/Catalogs';
 import { Reports } from './components/Reports';
 import { Analysis } from './components/Analysis';
 import { Settings } from './components/Settings';
+import { Transactions } from './components/Transactions';
 import { PurchaseModal, SaleModal, ExpenseModal, ProductionModal, InventoryCountModal, AssetCountModal, CashAdjustmentModal } from './components/Operations';
 import { backupManager } from './lib/backup';
 import { getAccountingDocumentation } from './lib/accountingDocs';
@@ -17,9 +18,16 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem('erp_auth_token') === 'true';
   });
-  const [tab, setTab] = useState('ops'); // ops, cats, reps, sets
+  const [tab, setTab] = useState('ops'); // ops, cats, reps, anls, txs, sets
   const [modal, setModal] = useState<string | null>(null);
   const [backupToast, setBackupToast] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    const unsub = useStore.persist.onFinishHydration(() => setIsHydrated(true));
+    setIsHydrated(useStore.persist.hasHydrated());
+    return unsub;
+  }, []);
 
   useEffect(() => {
     if (!initialized) return;
@@ -60,6 +68,18 @@ export default function App() {
     return <Login onLogin={handleLogin} />;
   }
 
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-jardin-bg flex flex-col items-center justify-center">
+        <img src="logo3.png" alt="Cargando..." className="w-40 h-40 object-contain animate-pulse mb-8" />
+        <div className="flex flex-col items-center">
+            <div className="w-6 h-6 border-4 border-jardin-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-medium tracking-wide">Sincronizando Sistema...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!initialized) {
     return <Onboarding />;
   }
@@ -70,6 +90,7 @@ export default function App() {
       {tab === 'cats' && <Catalogs />}
       {tab === 'reps' && <Reports />}
       {tab === 'anls' && <Analysis />}
+      {tab === 'txs' && <Transactions />}
       {tab === 'sets' && <Settings />}
 
       {/* Modals are always mounted but hidden until needed, or conditionally rendered. Conditional is better for state reset. */}

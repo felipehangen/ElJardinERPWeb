@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { cloudStorage } from './cloudStorage';
 import { INITIAL_STATE } from '../types';
-import type { AppState, Accounts, InventoryItem, Product, Transaction, Provider, ExpenseType, AssetItem } from '../types';
+import type { AppState, Accounts, InventoryItem, Product, Transaction, Provider, ExpenseType, AssetItem, Location } from '../types';
 
 interface StoreActions {
     setInitialized: (val: boolean) => void;
@@ -21,6 +22,11 @@ interface StoreActions {
     addProduct: (item: Product) => void;
     updateProduct: (id: string, updates: Partial<Product>) => void;
     deleteProduct: (id: string) => void;
+
+    // Locations
+    addLocation: (item: Location) => void;
+    updateLocation: (id: string, updates: Partial<Location>) => void;
+    deleteLocation: (id: string) => void;
 
     // Providers
     addProvider: (item: Provider) => void;
@@ -79,6 +85,12 @@ export const useStore = create<AppState & StoreActions>()(
                 products: state.products.map((p) => (p.id === id ? { ...p, ...updates } : p)),
             })),
             deleteProduct: (id) => set((state) => ({ products: state.products.filter((p) => p.id !== id) })),
+
+            addLocation: (item) => set((state) => ({ locations: [...state.locations, item] })),
+            updateLocation: (id, updates) => set((state) => ({
+                locations: state.locations.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+            })),
+            deleteLocation: (id) => set((state) => ({ locations: state.locations.filter((p) => p.id !== id) })),
 
             addProvider: (item) => set((state) => ({ providers: [...state.providers, item] })),
             updateProvider: (id, updates) => set((state) => ({
@@ -407,8 +419,8 @@ export const useStore = create<AppState & StoreActions>()(
         }),
         {
             name: 'jardin-erp-storage-v4',
-            storage: createJSONStorage(() => localStorage),
-            version: 2, // v2 = app v1.0.1: added assets[], InventoryBatch FIFO, hidden soft-delete, Transaction cogs/status/voidingTxId
+            storage: createJSONStorage(() => cloudStorage),
+            version: 3, // v3 = added locations array
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -421,8 +433,11 @@ export const useStore = create<AppState & StoreActions>()(
                 // v1 → v2 (app v1.0.0 → v1.0.1): assets array added as root field
                 if (version < 2) {
                     if (!state.assets) state.assets = [];
-                    // All other additions (hidden, batches, cogs, status, voidingTxId) are optional
-                    // fields on existing objects — they default to undefined safely, no transform needed.
+                }
+
+                // v2 -> v3 (added locations array)
+                if (version < 3) {
+                    if (!state.locations) state.locations = [];
                 }
 
                 // Example for future:

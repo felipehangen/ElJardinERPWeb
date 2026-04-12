@@ -33,7 +33,8 @@ export const SystemAuditTest = () => {
                 { id: crypto.randomUUID(), name: "Planilla" }
             ],
             transactions: [],
-            assets: []
+            assets: [],
+            locations: []
         });
 
         const state = useStore.getState();

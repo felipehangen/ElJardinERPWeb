@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from './ui';
-import { LayoutDashboard, Package, BarChart3, Settings as SettingsIcon, Menu, X, PieChart } from 'lucide-react';
+import { LayoutDashboard, Package, BarChart3, Settings as SettingsIcon, Menu, X, PieChart, List } from 'lucide-react';
 import packageJson from '../../package.json';
 
 interface LayoutProps {
@@ -38,6 +38,7 @@ export const Layout = ({ children, currentTab, onTabChange }: LayoutProps) => {
                     <NavItem id="cats" icon={<Package size={20} />} label="Catálogos" />
                     <NavItem id="reps" icon={<BarChart3 size={20} />} label="Reportes" />
                     <NavItem id="anls" icon={<PieChart size={20} />} label="Análisis" />
+                    <NavItem id="txs" icon={<List size={20} />} label="Transacciones" />
                     <NavItem id="sets" icon={<SettingsIcon size={20} />} label="Ajustes" />
                 </nav>
             </aside>
@@ -62,6 +63,7 @@ export const Layout = ({ children, currentTab, onTabChange }: LayoutProps) => {
                             <NavItem id="cats" icon={<Package size={20} />} label="Catálogos" />
                             <NavItem id="reps" icon={<BarChart3 size={20} />} label="Reportes" />
                             <NavItem id="anls" icon={<PieChart size={20} />} label="Análisis" />
+                            <NavItem id="txs" icon={<List size={20} />} label="Transacciones" />
                             <NavItem id="sets" icon={<SettingsIcon size={20} />} label="Ajustes" />
                         </nav>
                     </aside>

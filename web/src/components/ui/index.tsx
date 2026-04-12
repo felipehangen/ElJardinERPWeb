@@ -8,6 +8,18 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+export const formatMoney = (val: number) => {
+    return (val || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
+
+export const formatQty = (val: number) => {
+    return Number(val).toLocaleString('en-US', { maximumFractionDigits: 2 });
+};
+
+export const normalizeName = (str: string) => {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+};
+
 export const Button = ({ className, variant = "primary", size = "default", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "outline" | "ghost", size?: "default" | "sm" | "lg" | "icon" }) => {
     const variants = {
         primary: "bg-jardin-primary text-white hover:bg-jardin-secondary",

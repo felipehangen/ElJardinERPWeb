@@ -1,25 +1,27 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Button, Input, Card, Modal, cn } from './ui';
-import { Trash2, Plus, Box, Tag, Users, FileText } from 'lucide-react';
+import { Button, Input, Card, Modal, cn, formatMoney, normalizeName } from './ui';
+import { Trash2, Plus, Box, Tag, Users, FileText, MapPin } from 'lucide-react';
 
 export const Catalogs = () => {
     const {
-        inventory, products, providers, expenseTypes,
+        inventory, products, providers, expenseTypes, locations,
         addInventoryItem, updateInventoryItem, deleteInventoryItem,
         addProduct, updateProduct, deleteProduct,
         addProvider, updateProvider, deleteProvider,
         addExpenseType, updateExpenseType, deleteExpenseType,
+        addLocation, updateLocation, deleteLocation
     } = useStore();
 
-    const [activeTab, setActiveTab] = useState<'inv' | 'prod' | 'prov' | 'exp'>('inv');
+    const [activeTab, setActiveTab] = useState<'inv' | 'prod' | 'prov' | 'exp' | 'ubi'>('inv');
 
     // Forms
-    const [invForm, setInvForm] = useState({ name: '', cost: '' });
+    const [invForm, setInvForm] = useState({ name: '', cost: '', locationId: '' });
     const [prodForm, setProdForm] = useState({ name: '', price: '' });
     const [provForm, setProvForm] = useState('');
+    const [ubiForm, setUbiForm] = useState('');
     const [expForm, setExpForm] = useState('');
-    const [pendingHide, setPendingHide] = useState<{ id: string, type: 'inv' | 'prod' | 'prov' | 'exp' } | null>(null);
+    const [pendingHide, setPendingHide] = useState<{ id: string, type: 'inv' | 'prod' | 'prov' | 'exp' | 'ubi' } | null>(null);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
 
@@ -27,6 +29,7 @@ export const Catalogs = () => {
         <div className="flex gap-2 overflow-x-auto pb-2">
             {[
                 { id: 'inv', label: 'Inventario', icon: Box },
+                { id: 'ubi', label: 'Ubicaciones', icon: MapPin },
                 { id: 'prod', label: 'Productos Venta', icon: Tag },
                 { id: 'prov', label: 'Proveedores', icon: Users },
                 { id: 'exp', label: 'Tipos de Gasto', icon: FileText },
@@ -78,18 +81,28 @@ export const Catalogs = () => {
                         <div className="space-y-4">
                             <Card>
                                 <h3 className="font-bold mb-4">Nuevo Artículo de Inventario</h3>
-                                <div className="flex gap-4">
+                                <div className="flex flex-wrap sm:flex-nowrap gap-4">
                                     <Input placeholder="Nombre + Unidad (ej: Arroz 1kg)" value={invForm.name} onChange={e => setInvForm({ ...invForm, name: e.target.value })} />
-                                    <Input type="number" placeholder="Costo Estándar" className="w-40" value={invForm.cost} onChange={e => setInvForm({ ...invForm, cost: e.target.value })} />
-                                    <Button onClick={() => {
+                                    <Input type="number" placeholder="Costo Estándar" className="w-40 shrink-0" value={invForm.cost} onChange={e => setInvForm({ ...invForm, cost: e.target.value })} />
+                                    <select 
+                                        className="h-12 px-3 border border-gray-200 rounded-xl bg-white text-sm outline-none focus:border-jardin-primary shrink-0 min-w-[120px]"
+                                        value={invForm.locationId}
+                                        onChange={e => setInvForm({...invForm, locationId: e.target.value})}
+                                    >
+                                        <option value="">Bodega Ppal</option>
+                                        {locations.filter(l => !l.hidden).map(l => (
+                                            <option key={l.id} value={l.id}>{l.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button className="shrink-0" onClick={() => {
                                         if (!invForm.name || !invForm.cost) return;
                                         const trimmedName = invForm.name.trim();
-                                        if (inventory.some(i => i.name.toLowerCase() === trimmedName.toLowerCase())) {
+                                        if (inventory.some(i => normalizeName(i.name) === normalizeName(trimmedName))) {
                                             setDuplicateError('Ese artículo de inventario ya existe.');
                                             return;
                                         }
-                                        addInventoryItem({ id: crypto.randomUUID(), name: trimmedName, cost: parseFloat(invForm.cost || '0'), stock: 0 });
-                                        setInvForm({ name: '', cost: '' });
+                                        addInventoryItem({ id: crypto.randomUUID(), name: trimmedName, cost: parseFloat(invForm.cost || '0'), stock: 0, locationId: invForm.locationId || undefined });
+                                        setInvForm({ name: '', cost: '', locationId: '' });
                                     }}><Plus size={20} /></Button>
                                 </div>
                             </Card>
@@ -98,10 +111,18 @@ export const Catalogs = () => {
                                     <div className="p-6 text-center text-gray-400 text-sm italic">Sin artículos en inventario</div>
                                 )}
                                 {visibleItems.map(i => (
-                                    <div key={i.id} className="p-4 flex justify-between items-center text-sm">
-                                        <span className="font-medium">{i.name}</span>
-                                        <div className="flex items-center gap-4 text-gray-500">
-                                            <span>Ref: ₡{i.cost}</span>
+                                    <div key={i.id} className="p-4 flex flex-wrap sm:flex-nowrap justify-between items-center text-sm gap-y-2">
+                                        <span className="font-medium mr-2">{i.name}</span>
+                                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-4 text-gray-500 shrink-0">
+                                            <select 
+                                                className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-jardin-primary"
+                                                value={i.locationId || ''}
+                                                onChange={e => updateInventoryItem(i.id, { locationId: e.target.value || undefined })}
+                                            >
+                                                <option value="">Bodega Ppal</option>
+                                                {locations.filter(l => !l.hidden).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                            </select>
+                                            <span>Ref: ₡{formatMoney(i.cost)}</span>
                                             <button
                                                 title="Eliminar o esconder artículo"
                                                 onClick={() => handleDeleteOrHide(i.id)}
@@ -141,6 +162,73 @@ export const Catalogs = () => {
                     );
                 })()}
 
+                {/* Locations */}
+                {activeTab === 'ubi' && (() => {
+                    const visibleUbis = locations.filter(p => !p.hidden).sort((a, b) => a.name.localeCompare(b.name));
+                    const hiddenUbis = locations.filter(p => p.hidden).sort((a, b) => a.name.localeCompare(b.name));
+
+                    const handleDeleteOrHideUbi = (id: string) => {
+                        const hasItemsLinked = inventory.some(i => i.locationId === id && !i.hidden);
+                        if (hasItemsLinked) setPendingHide({ id, type: 'ubi' });
+                        else deleteLocation(id);
+                    };
+
+                    return (
+                        <div className="space-y-4">
+                            <Card>
+                                <h3 className="font-bold mb-4">Nueva Ubicación</h3>
+                                <div className="flex gap-4">
+                                    <Input placeholder="Nombre (ej: Restaurante, Bodega 2)" value={ubiForm} onChange={e => setUbiForm(e.target.value)} />
+                                    <Button onClick={() => {
+                                        if (!ubiForm) return;
+                                        const trimmedName = ubiForm.trim();
+                                        if (locations.some(p => normalizeName(p.name) === normalizeName(trimmedName))) {
+                                            setDuplicateError('Esa ubicación ya existe.');
+                                            return;
+                                        }
+                                        addLocation({ id: crypto.randomUUID(), name: trimmedName });
+                                        setUbiForm('');
+                                    }}><Plus size={20} /></Button>
+                                </div>
+                            </Card>
+                            <div className="bg-white rounded-xl border border-gray-100 divide-y">
+                                {visibleUbis.length === 0 && (
+                                    <div className="p-6 text-center text-gray-400 text-sm italic">Sin ubicaciones registradas</div>
+                                )}
+                                {visibleUbis.map(i => (
+                                    <div key={i.id} className="p-4 flex justify-between items-center text-sm">
+                                        <span>{i.name}</span>
+                                        <button onClick={() => handleDeleteOrHideUbi(i.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {hiddenUbis.length > 0 && (
+                                <details className="group">
+                                    <summary className="cursor-pointer text-sm font-bold text-gray-500 mb-2 list-none flex items-center gap-2">
+                                        <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+                                        Ubicaciones Ocultas ({hiddenUbis.length})
+                                    </summary>
+                                    <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 divide-y mt-2">
+                                        {hiddenUbis.map(i => (
+                                            <div key={i.id} className="p-4 flex justify-between items-center text-sm text-gray-400">
+                                                <span className="line-through">{i.name}</span>
+                                                <button
+                                                    title="Restaurar ubicación"
+                                                    onClick={() => updateLocation(i.id, { hidden: false })}
+                                                    className="text-xs text-jardin-primary hover:underline font-medium"
+                                                >
+                                                    Restaurar
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </details>
+                            )}
+                        </div>
+                    );
+                })()}
+
                 {/* Products */}
                 {activeTab === 'prod' && (() => {
                     const visibleProducts = products.filter(p => !p.hidden).sort((a, b) => a.name.localeCompare(b.name));
@@ -163,7 +251,7 @@ export const Catalogs = () => {
                                     <Button onClick={() => {
                                         if (!prodForm.name || !prodForm.price) return;
                                         const trimmedName = prodForm.name.trim();
-                                        if (products.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
+                                        if (products.some(p => normalizeName(p.name) === normalizeName(trimmedName))) {
                                             setDuplicateError('Ese producto de venta ya existe.');
                                             return;
                                         }
@@ -240,7 +328,7 @@ export const Catalogs = () => {
                                     <Button onClick={() => {
                                         if (!provForm) return;
                                         const trimmedName = provForm.trim();
-                                        if (providers.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
+                                        if (providers.some(p => normalizeName(p.name) === normalizeName(trimmedName))) {
                                             setDuplicateError('Ese proveedor ya existe.');
                                             return;
                                         }
@@ -308,7 +396,7 @@ export const Catalogs = () => {
                                     <Button onClick={() => {
                                         if (!expForm) return;
                                         const trimmedName = expForm.trim();
-                                        if (expenseTypes.some(e => e.name.toLowerCase() === trimmedName.toLowerCase())) {
+                                        if (expenseTypes.some(e => normalizeName(e.name) === normalizeName(trimmedName))) {
                                             setDuplicateError('Ese tipo de gasto ya existe.');
                                             return;
                                         }
@@ -379,6 +467,7 @@ export const Catalogs = () => {
                             if (pendingHide?.type === 'prod') updateProduct(pendingHide.id, { hidden: true });
                             if (pendingHide?.type === 'prov') updateProvider(pendingHide.id, { hidden: true });
                             if (pendingHide?.type === 'exp') updateExpenseType(pendingHide.id, { hidden: true });
+                            if (pendingHide?.type === 'ubi') updateLocation(pendingHide.id, { hidden: true });
                             setPendingHide(null);
                         }} className="flex-1">Esconder Registro</Button>
                     </div>

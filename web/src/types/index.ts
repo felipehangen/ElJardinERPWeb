@@ -7,6 +7,7 @@ export interface AppState {
     expenseTypes: ExpenseType[];
     transactions: Transaction[];
     assets: AssetItem[];
+    locations: Location[];
 }
 
 export interface Accounts {
@@ -35,6 +36,7 @@ export interface InventoryItem {
     stock: number; // Total stock (sum of all batches)
     batches?: InventoryBatch[]; // Legacy items might not have this initially
     hidden?: boolean; // Soft-delete: hidden from operations but kept for accounting integrity
+    locationId?: string; // Tying this inventory item to a location
 }
 
 export interface AssetItem {
@@ -42,6 +44,12 @@ export interface AssetItem {
     name: string; // "Crepera"
     value: number;
     quantity: number;
+}
+
+export interface Location {
+    id: string;
+    name: string; // "Bodega, Restaurante"
+    hidden?: boolean;
 }
 
 export interface Product {
@@ -91,4 +99,5 @@ export const INITIAL_STATE: AppState = {
     expenseTypes: [],
     transactions: [],
     assets: [],
+    locations: [],
 };

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Button, Card, Input, Modal } from './ui';
+import { Button, Card, Input, Modal, formatMoney } from './ui';
 import { Download, Upload, Trash2, RotateCcw, FolderOpen, Wallet, CheckCircle2 } from 'lucide-react';
 import { SystemAuditTest } from './SystemAuditTest';
 import { backupManager } from '../lib/backup';
@@ -270,7 +270,7 @@ export const Settings = () => {
                     <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
                         <div className="flex justify-between items-center py-2 border-b border-gray-200/50 last:border-0">
                             <span className="text-sm text-gray-500 font-medium">Monto del Aporte</span>
-                            <span className="font-bold text-gray-900">₡{(successMsg?.amount || 0).toLocaleString()}</span>
+                            <span className="font-bold text-gray-900">₡{formatMoney(successMsg?.amount || 0)}</span>
                         </div>
                         <div className="flex justify-between items-center py-2 border-b border-gray-200/50 last:border-0">
                             <span className="text-sm text-gray-500 font-medium">Cuenta Destino</span>

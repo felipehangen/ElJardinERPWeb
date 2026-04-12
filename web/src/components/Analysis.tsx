@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Search, Info, TrendingUp, TrendingDown, Download, FilterX, FileText } from 'lucide-react';
+import { formatMoney, formatQty } from './ui';
 
 const StatementRow = ({ title, value, onClick, selected, type = 'normal' }: any) => {
     const isNegative = type === 'deduction';
@@ -37,7 +38,7 @@ const StatementRow = ({ title, value, onClick, selected, type = 'normal' }: any)
                 {value === 0 ? '₡0' : (
                     <span className="flex items-center">
                         {(isNegative || value < 0) && <span className={`font-sans font-light mr-1.5 ${type === 'grand-total' ? 'text-white/50' : 'text-gray-400'}`}>-</span>}
-                        ₡{Math.abs(value).toLocaleString('es-CR', { maximumFractionDigits: 0 })}
+                        ₡{formatMoney(Math.abs(value))}
                     </span>
                 )}
             </div>
@@ -54,7 +55,7 @@ export const Analysis = () => {
     const [expandedTx, setExpandedTx] = useState<string | null>(null);
 
     // Main Tab State
-    const [activeTab, setActiveTab] = useState<'estado' | 'tendencia'>('estado');
+    const [activeTab, setActiveTab] = useState<'estado' | 'tendencia' | 'top'>('estado');
 
     // Income Statement State
     const [statementFilter, setStatementFilter] = useState<'Ventas' | 'Costos' | 'Gastos' | 'Otros Ingresos' | 'Otros Gastos' | null>(null);
@@ -186,7 +187,30 @@ export const Analysis = () => {
 
         const arr = Array.from(dataMap.values()).filter(d => d.Ingresos > 0 || d.Costos > 0 || d.Gastos > 0);
         arr.sort((a, b) => a.date.localeCompare(b.date));
+        
+        let runningAccum = 0;
+        arr.forEach(d => {
+            const net = d.Ingresos - d.Costos - d.Gastos;
+            runningAccum += net;
+            d.Acumulado = runningAccum;
+        });
+
         return arr;
+    }, [transactions]);
+
+    const topProducts = useMemo(() => {
+        const prodMap = new Map<string, {name: string, qty: number, revenue: number}>();
+        transactions.filter(t => t.type === 'SALE' && t.status !== 'VOIDED' && t.details?.cart).forEach(t => {
+            (t.details.cart as any[]).forEach((c: any) => {
+                if (!prodMap.has(c.id)) {
+                    prodMap.set(c.id, { name: c.name, qty: 0, revenue: 0 });
+                }
+                const entry = prodMap.get(c.id)!;
+                entry.qty += c.qty;
+                entry.revenue += (parseFloat(c.price || '0') * c.qty);
+            });
+        });
+        return Array.from(prodMap.values()).sort((a, b) => b.qty - a.qty);
     }, [transactions]);
 
     const activeTxs = chartData.find(d => d.date === selectedDate)?.txs || [];
@@ -221,11 +245,11 @@ export const Analysis = () => {
                 </div>
                 <div className="text-right">
                     <div className="font-bold text-gray-900">
-                        ₡{tx.amount.toLocaleString('es-CR', { maximumFractionDigits: 0 })}
+                        ₡{formatMoney(tx.amount)}
                     </div>
                     {tx.cogs !== undefined && tx.cogs > 0 && (
                         <div className="text-xs text-amber-600 mt-1 flex items-center justify-end gap-1">
-                            <Info size={12} /> Costo: ₡{tx.cogs.toLocaleString('es-CR', { maximumFractionDigits: 0 })}
+                            <Info size={12} /> Costo: ₡{formatMoney(tx.cogs)}
                         </div>
                     )}
                 </div>
@@ -259,7 +283,7 @@ export const Analysis = () => {
                                             </span>
                                         </div>
                                         <div className={`font-mono font-bold ${detail.financialDiff > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                            {detail.financialDiff > 0 ? '-' : '+'}₡{Math.abs(detail.financialDiff).toLocaleString('es-CR', { maximumFractionDigits: 0 })}
+                                            {detail.financialDiff > 0 ? '-' : '+'}₡{formatMoney(Math.abs(detail.financialDiff))}
                                         </div>
                                     </li>
                                 ))
@@ -278,7 +302,7 @@ export const Analysis = () => {
                                         </div>
                                         <div className="font-mono text-gray-500 font-bold text-xs text-right">
                                              <div>Valor (est):</div>
-                                             <div>₡{estimatedValue.toLocaleString('es-CR', { maximumFractionDigits: 0 })}</div>
+                                             <div>₡{formatMoney(estimatedValue)}</div>
                                         </div>
                                     </li>
                                 );
@@ -288,8 +312,8 @@ export const Analysis = () => {
                         <ul className="space-y-1 mt-2 text-xs">
                             {(tx.details.cart as any[]).map((c, i) => (
                                 <li key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                                    <span><span className="font-bold">{c.qty}x</span> {c.name}</span>
-                                    <span className="font-mono">₡{Number(c.price).toLocaleString()}</span>
+                                    <span><span className="font-bold">{formatQty(c.qty)}x</span> {c.name}</span>
+                                    <span className="font-mono">₡{formatMoney(Number(c.price))}</span>
                                 </li>
                             ))}
                         </ul>
@@ -297,7 +321,7 @@ export const Analysis = () => {
                         <ul className="space-y-1 mt-2 text-xs">
                             {(tx.details.ingredients as any[]).map((ing, i) => (
                                 <li key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                                    <span><span className="font-bold">{ing.qty}x</span> {ing.item.name}</span>
+                                    <span><span className="font-bold">{formatQty(ing.qty)}x</span> {ing.item.name}</span>
                                 </li>
                             ))}
                         </ul>
@@ -330,6 +354,12 @@ export const Analysis = () => {
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'tendencia' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Tendencia Diaria
+                </button>
+                <button 
+                    onClick={() => setActiveTab('top')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'top' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Más Vendidos
                 </button>
             </div>
 
@@ -416,7 +446,7 @@ export const Analysis = () => {
                         ) : (
                             <div className="h-[400px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart
+                                    <ComposedChart
                                         data={chartData}
                                         margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                                         onClick={(data: any) => {
@@ -429,9 +459,9 @@ export const Analysis = () => {
                                     >
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                         <XAxis dataKey="date" tick={{ fill: '#6B7280' }} tickMargin={10} />
-                                        <YAxis tickFormatter={(val) => `₡${val.toLocaleString('es-CR', { maximumFractionDigits: 0 })}`} tick={{ fill: '#6B7280' }} />
+                                        <YAxis tickFormatter={(val) => `₡${formatMoney(val)}`} tick={{ fill: '#6B7280' }} />
                                         <Tooltip 
-                                            formatter={(value: any) => [`₡${Number(value).toLocaleString('es-CR', { maximumFractionDigits: 0 })}`, undefined]}
+                                            formatter={(value: any, name: any) => [`₡${formatMoney(Number(value))}`, name]}
                                             cursor={{fill: '#F3F4F6'}}
                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
                                         />
@@ -439,7 +469,8 @@ export const Analysis = () => {
                                         <Bar dataKey="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} cursor="pointer" />
                                         <Bar dataKey="Costos" fill="#f59e0b" radius={[4, 4, 0, 0]} cursor="pointer" />
                                         <Bar dataKey="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} cursor="pointer" />
-                                    </BarChart>
+                                        <Line type="monotone" dataKey="Acumulado" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                                    </ComposedChart>
                                 </ResponsiveContainer>
                                 <p className="text-xs text-gray-400 mt-4 text-center">Haz clic en alguna de las barras o fecha para ver el detalle de movimientos en la parte inferior.</p>
                             </div>
@@ -464,6 +495,43 @@ export const Analysis = () => {
                             <div className="space-y-3">
                                 {activeTxs.map(renderTxRow)}
                             </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Top Products Section */}
+            {activeTab === 'top' && (
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+                    <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                        <TrendingUp className="text-jardin-primary" />
+                        Productos Más Vendidos
+                    </h2>
+
+                    {topProducts.length === 0 ? (
+                        <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-2xl">
+                            Aún no hay suficientes ventas registradas para generar este reporte.
+                        </div>
+                    ) : (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {topProducts.map((p, i) => (
+                                <div key={i} className="flex flex-col bg-gray-50 p-4 rounded-2xl border border-gray-100 relative overflow-hidden group hover:border-gray-300 transition-colors">
+                                    {i < 3 && (
+                                        <div className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm ${
+                                            i === 0 ? 'bg-amber-400 text-amber-900 border-b border-l border-amber-500' :
+                                            i === 1 ? 'bg-gray-300 text-gray-800 border-b border-l border-gray-400' :
+                                            'bg-orange-300 text-orange-900 border-b border-l border-orange-400'
+                                        }`}>
+                                            🏆 #{i + 1}
+                                        </div>
+                                    )}
+                                    <h4 className="font-bold text-gray-900 pr-12 text-lg line-clamp-1 truncate" title={p.name}>{p.name}</h4>
+                                    <div className="mt-4 flex justify-between items-end">
+                                        <div className="text-xs text-gray-500 uppercase tracking-widest font-bold">Unidades<br/><span className="text-2xl font-black text-gray-800">{formatQty(p.qty)}</span></div>
+                                        <div className="text-xs text-gray-500 uppercase tracking-widest font-bold text-right pt-1">Ingresos<br/><span className="text-xl font-black text-emerald-600 font-mono tracking-tight">₡{formatMoney(p.revenue)}</span></div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>

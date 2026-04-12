@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { Button, Input, Modal, Combobox, cn } from '../ui';
+import { Button, Input, Modal, Combobox, cn, formatMoney, formatQty, normalizeName } from '../ui';
 import { Trash2 } from 'lucide-react';
 import { AccountingActions } from '../../lib/accounting';
 import { AccountingFeedback } from '../AccountingFeedback';
@@ -67,7 +67,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
     // Handlers needed for Combobox to Quick Create
     const handleCreateInv = (name: string) => {
         // Prevent duplicates by checking if case-insensitive name exists
-        const existing = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+        const existing = inventory.find(i => normalizeName(i.name) === normalizeName(name));
         if (existing) {
             setForm(prev => ({ ...prev, itemId: existing.id, itemName: existing.name }));
             return;
@@ -81,7 +81,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
     const confirmCreateInv = () => {
         if (!newItem.name) return;
         const trimmedName = newItem.name.trim();
-        if (inventory.some(i => i.name.toLowerCase() === trimmedName.toLowerCase())) {
+        if (inventory.some(i => normalizeName(i.name) === normalizeName(trimmedName))) {
             setDuplicateError('Ese artículo ya existe en el catálogo.');
             return;
         }
@@ -125,7 +125,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         // NEW: Auto-create provider if typed but not selected
         let finalProvId = form.provId;
         if (!finalProvId && tempProvName.trim()) {
-            const existing = providers.find(p => p.name.toLowerCase() === tempProvName.toLowerCase());
+            const existing = providers.find(p => normalizeName(p.name) === normalizeName(tempProvName));
             if (existing) {
                 finalProvId = existing.id;
             } else {
@@ -201,7 +201,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         updateAccounts(() => newAccounts);
         addTransaction({
             id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount,
-            description: `Compra ${tab === 'inventory' ? 'Inventario' : 'Activo'}: ${form.itemName} (x${quantity})`,
+            description: `Compra ${tab === 'inventory' ? 'Inventario' : 'Activo'}: ${form.itemName} (x${formatQty(quantity)})`,
             details: { itemName: form.itemName, quantity, method: form.method, type: tab, providerName: targetProvider }
         });
 
@@ -209,7 +209,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         const currLedger = { ...freshState.accounts, ...freshState.getLedgerAccounts() };
 
         // Trigger Feedback instead of closing immediately
-        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Compraste: ${form.itemName} (x${quantity})` });
+        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Compraste: ${form.itemName} (x${formatQty(quantity)})` });
         setForm({ itemId: '', itemName: '', unitPrice: '', quantity: '1', method: 'caja_chica', provId: '' });
         setTempProvName('');
     };
@@ -296,7 +296,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
                         <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Precio Total</span>
                             <span className="text-lg font-black text-jardin-primary">
-                                ₡{Math.round((parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0'))).toLocaleString()}
+                                ₡{formatMoney(Math.round(parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0')))}
                             </span>
                         </div>
 
@@ -321,8 +321,8 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
                 data={[
                     { label: "Artículo", value: form.itemName },
                     { label: "Cantidad", value: form.quantity },
-                    { label: "Precio Unitario", value: `₡${Math.round(parseFloat(form.unitPrice || '0')).toLocaleString()}` },
-                    { label: "Precio Total", value: `₡${Math.round(parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0')).toLocaleString()}`, highlight: true },
+                    { label: "Precio Unitario", value: `₡${formatMoney(Math.round(parseFloat(form.unitPrice || '0')))}` },
+                    { label: "Precio Total", value: `₡${formatMoney(Math.round(parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0')))}`, highlight: true },
                     { label: "Método", value: form.method === 'caja_chica' ? 'Caja Chica' : 'Banco' },
                     { label: "Proveedor", value: providers.find(p => p.id === form.provId)?.name || tempProvName || 'No especificado' }
                 ]}
@@ -427,7 +427,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
         const newAccounts = AccountingActions.registerSale(accounts, totalAmount, totalCOGS, isInventoriable, method as any);
         updateAccounts(() => newAccounts);
 
-        const desc = cart.map(i => `${i.name} (x${i.qty})`).join(', ');
+        const desc = cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ');
 
         addTransaction({
             id: crypto.randomUUID(),
@@ -443,7 +443,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
         const freshState = useStore.getState();
         const currLedger = { ...freshState.accounts, ...freshState.getLedgerAccounts() };
 
-        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Venta Total: ₡${totalAmount.toLocaleString()} (${cart.length} items)` });
+        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Venta Total: ₡${formatMoney(totalAmount)} (${cart.length} items)` });
         setCart([]);
         setMethod('caja_chica');
     };
@@ -513,7 +513,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 
                     <div className="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <span className="font-bold text-blue-900">Total a Cobrar</span>
-                        <span className="font-black text-2xl text-blue-700">₡{totalAmount.toLocaleString()}</span>
+                        <span className="font-black text-2xl text-blue-700">₡{formatMoney(totalAmount)}</span>
                     </div>
 
                     <PaymentMethod value={method} onChange={setMethod} />
@@ -530,7 +530,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                         onClick={handleSubmit}
                         disabled={(cart.length === 0 && !typedProductName.trim()) || (cart.length > 0 && totalAmount < 0)}
                     >
-                        Cobrar ₡{totalAmount.toLocaleString()}
+                        Cobrar ₡{formatMoney(totalAmount)}
                     </Button>
                 </div>
             </Modal>
@@ -541,8 +541,8 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                 onConfirm={executeSubmit}
                 title="Confirmar Venta"
                 data={[
-                    { label: "Items", value: cart.map(i => `${i.name} (x${i.qty})`).join(', ') },
-                    { label: "Monto Total", value: `₡${totalAmount.toLocaleString()}`, highlight: true },
+                    { label: "Items", value: cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ') },
+                    { label: "Monto Total", value: `₡${formatMoney(totalAmount)}`, highlight: true },
                     { label: "Método de Pago", value: method === 'caja_chica' ? 'Caja Chica' : 'Banco' }
                 ]}
             />
@@ -596,7 +596,7 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
         // NEW: Auto-create provider if typed but not selected
         let finalProvId = form.provId;
         if (!finalProvId && tempProvName.trim()) {
-            const existing = providers.find(p => p.name.toLowerCase() === tempProvName.toLowerCase());
+            const existing = providers.find(p => normalizeName(p.name) === normalizeName(tempProvName));
             if (existing) {
                 finalProvId = existing.id;
             } else {
@@ -679,7 +679,7 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
                 title="Confirmar Gasto"
                 data={[
                     { label: "Tipo de Gasto", value: form.typeName },
-                    { label: "Monto", value: `₡${parseFloat(form.amount).toLocaleString()}`, highlight: true },
+                    { label: "Monto", value: `₡${formatMoney(parseFloat(form.amount))}`, highlight: true },
                     { label: "Método", value: form.method === 'caja_chica' ? 'Caja Chica' : 'Banco' },
                     { label: "Proveedor", value: providers.find(p => p.id === form.provId)?.name || tempProvName || 'N/A' },
                     { label: "Detalle", value: form.detail || 'Sin detalle' }
@@ -734,7 +734,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
     // Create new Ingredient on the fly
     const handleCreateIngredient = (name: string) => {
         const trimmedName = name.trim();
-        if (inventory.some(i => i.name.toLowerCase() === trimmedName.toLowerCase())) {
+        if (inventory.some(i => normalizeName(i.name) === normalizeName(trimmedName))) {
             setDuplicateError('Ese ingrediente ya existe en el catálogo.');
             return;
         }
@@ -747,7 +747,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
     // Create Output Product Immediately
     const handleCreateOutput = (name: string) => {
         const trimmedName = name.trim();
-        if (inventory.some(i => i.name.toLowerCase() === trimmedName.toLowerCase())) {
+        if (inventory.some(i => normalizeName(i.name) === normalizeName(trimmedName))) {
             setDuplicateError('Ese producto final ya existe en el catálogo.');
             return;
         }
@@ -781,7 +781,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
             cost: exactTotalCost / outputQty
         };
 
-        const existing = inventory.find(i => i.name.toLowerCase() === output.name.toLowerCase());
+        const existing = inventory.find(i => normalizeName(i.name) === normalizeName(output.name));
 
         if (existing) {
             const existingBatches = existing.batches && existing.batches.length > 0 ? [...existing.batches] : [{
@@ -811,7 +811,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
         }
 
         // 3. Accounting
-        const ingText = ingredients.map(i => `${i.qty}x ${i.item.name}`).join(', ');
+        const ingText = ingredients.map(i => `${formatQty(parseFloat(i.qty))}x ${i.item.name}`).join(', ');
         addTransaction({
             id: crypto.randomUUID(),
             type: 'PRODUCTION',
@@ -866,7 +866,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
                                 <div key={ing.item.id} className="flex justify-between items-center bg-gray-50 p-2 rounded text-sm">
                                     <div>
                                         <div className="font-bold text-gray-700">{ing.item.name}</div>
-                                        <div className="text-xs text-gray-400">Stock: {ing.item.stock} | Costo: {ing.item.cost}</div>
+                                        <div className="text-xs text-gray-400">Stock: {formatQty(ing.item.stock)} | Costo: ₡{formatMoney(ing.item.cost)}</div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Input
@@ -885,7 +885,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
                         </div>
                         <div className="bg-gray-100 p-2 rounded flex justify-between font-bold text-sm">
                             <span>Costo Total Inventario:</span>
-                            <span>₡{totalIngCost.toLocaleString()}</span>
+                            <span>₡{formatMoney(totalIngCost)}</span>
                         </div>
                     </div>
 
@@ -918,7 +918,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
                             <div className="w-1/2">
                                 <label className="text-xs font-medium ml-1">Costo Unitario (Calc)</label>
                                 <div className="p-2 bg-gray-100 rounded border border-gray-200 text-right font-mono font-bold text-gray-600">
-                                    ₡{unitCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    ₡{formatMoney(unitCost)}
                                 </div>
                             </div>
                         </div>
@@ -953,10 +953,9 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
                 onConfirm={executeSubmit}
                 title="Confirmar Producción"
                 data={[
-                    { label: "Producto Resultante", value: output.name },
-                    { label: "Cantidad", value: output.qty },
-                    { label: "Costo Total Estimado", value: `₡${totalIngCost.toLocaleString()}`, highlight: true },
-                    { label: "Ingredientes", value: ingredients.map(i => `${i.qty}x ${i.item.name}`).join(', ') }
+                    { label: "Producto Resultante", value: `${output.name} (x${formatQty(parseFloat(output.qty))})` },
+                    { label: "Costo Total Estimado", value: `₡${formatMoney(totalIngCost)}`, highlight: true },
+                    { label: "Ingredientes", value: ingredients.map(i => `${formatQty(parseFloat(i.qty))}x ${i.item.name}`).join(', ') }
                 ]}
             />
 
@@ -991,13 +990,22 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
 
 // 5. Inventory Count
 export const InventoryCountModal = ({ isOpen, onClose }: any) => {
-    const { inventory, updateInventoryItem, accounts, updateAccounts, addTransaction, consumeInventoryFIFO } = useStore();
+    const { inventory, locations, updateInventoryItem, accounts, updateAccounts, addTransaction, consumeInventoryFIFO } = useStore();
 
     // State: map of itemId -> newStock (string to allow typing)
     const [counts, setCounts] = useState<Record<string, string>>({});
     const [search, setSearch] = useState('');
+    const [filterLocation, setFilterLocation] = useState('');
 
-    const filtered = inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+    const filtered = inventory.filter(i => {
+        const matchSearch = normalizeName(i.name).includes(normalizeName(search)) && !i.hidden;
+        if (!matchSearch) return false;
+        if (filterLocation) {
+            if (filterLocation === 'none') return !i.locationId;
+            return i.locationId === filterLocation;
+        }
+        return true;
+    });
 
     // Init counts with system values only once on open
     // Ideally use useEffect, but for simplicity we rely on manual entry or placeholder.
@@ -1097,7 +1105,7 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
             type: 'ADJUSTMENT',
             date: new Date().toISOString(),
             amount: Math.abs(exactTotalDiff),
-            description: `Toma Físico (${itemsAdjusted} items, Val: ₡${exactTotalDiff.toFixed(2)})`,
+            description: `Toma Físico (${itemsAdjusted} items, Val: ₡${formatMoney(exactTotalDiff)})`,
             cogs: exactTotalDiff,
             details: { itemsAdjusted, exactTotalDiff, counts, itemDetails }
         });
@@ -1109,13 +1117,25 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Toma de Inventario Físico">
             <div className="flex flex-col h-[60vh]">
-                <div className="mb-4">
+                <div className="mb-4 flex flex-col sm:flex-row gap-2">
                     <Input
                         placeholder="Buscar artículo..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         autoFocus
+                        className="flex-1"
                     />
+                    <select
+                        className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-jardin-primary/20 focus:border-jardin-primary bg-white text-sm"
+                        value={filterLocation}
+                        onChange={e => setFilterLocation(e.target.value)}
+                    >
+                        <option value="">Todas las Ubicaciones</option>
+                        <option value="none">Bodega Central (Sin asignación)</option>
+                        {locations.filter(l => !l.hidden).map(l => (
+                            <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                    </select>
                 </div>
                 <div className="flex-1 overflow-y-auto mb-4 border rounded-xl">
                     <table className="w-full text-sm text-left relative">
@@ -1136,8 +1156,11 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
                             )}
                             {filtered.map(item => (
                                 <tr key={item.id}>
-                                    <td className="p-3 font-medium">{item.name}</td>
-                                    <td className="p-3 text-center text-gray-500">{item.stock}</td>
+                                    <td className="p-3 font-medium">
+                                        {item.name}
+                                        <div className="text-[10px] text-gray-400 font-normal">Promedio: ₡{formatMoney(item.cost)}</div>
+                                    </td>
+                                    <td className="p-3 text-center text-gray-500">{formatQty(item.stock)}</td>
                                     <td className="p-3">
                                         <input
                                             type="number"
@@ -1145,12 +1168,18 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
                                             className={cn("w-20 p-1 border rounded text-center focus:outline-none focus:ring-2",
                                                 counts[item.id] && parseFloat(counts[item.id]) !== item.stock ? "border-amber-400 bg-amber-50" : "border-gray-200"
                                             )}
-                                            placeholder={item.stock.toString()}
+                                            placeholder={Number(item.stock.toFixed(2)).toString()}
                                             value={counts[item.id] !== undefined ? counts[item.id] : ''}
                                             onChange={e => {
                                                 const val = e.target.value;
                                                 if (val.includes('-')) return;
-                                                setCounts({ ...counts, [item.id]: val });
+                                                if (val === '') {
+                                                    const newCounts = { ...counts };
+                                                    delete newCounts[item.id];
+                                                    setCounts(newCounts);
+                                                } else {
+                                                    setCounts({ ...counts, [item.id]: val });
+                                                }
                                             }}
                                         />
                                     </td>
@@ -1164,7 +1193,7 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
                     <div>
                         <div className="text-xs font-bold text-gray-500 uppercase">Ajuste Valor (Diferencia)</div>
                         <div className={cn("text-xl font-black", diff > 0 ? "text-red-600" : "text-green-600")}>
-                            {diff > 0 ? '-' : '+'}₡{Math.abs(diff).toLocaleString()}
+                            {diff > 0 ? '-' : '+'}₡{formatMoney(Math.abs(diff))}
                         </div>
                     </div>
                     <Button onClick={handleSubmit}>Confirmar Ajuste</Button>
@@ -1188,7 +1217,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
 
     // Safety check matching Inventory, but treating undefined as empty
     const safeAssets = Array.isArray(assets) ? assets : [];
-    const filtered = safeAssets.filter(i => i && i.name && i.name.toLowerCase().includes(search.toLowerCase()));
+    const filtered = safeAssets.filter(i => i && i.name && normalizeName(i.name).includes(normalizeName(search)));
 
     const getDiffValue = () => {
         let diff = 0;
@@ -1242,7 +1271,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
             type: 'ADJUSTMENT',
             date: new Date().toISOString(),
             amount: Math.abs(diff),
-            description: `Ajuste de Activos (Dif: ${diff > 0 ? '-' : '+'}₡${Math.abs(diff)})`,
+            description: `Ajuste de Activos (Dif: ${diff > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diff))})`,
             cogs: diff,
             details: { counts, diff, itemDetails }
         });
@@ -1284,7 +1313,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
                                 <tr key={item.id}>
                                     <td className="p-3 font-medium">
                                         {item.name}
-                                        <div className="text-[10px] text-gray-400">Sis: ₡{(item.value || 0).toLocaleString()} (x{item.quantity || 1})</div>
+                                        <div className="text-[10px] text-gray-400">Sis: ₡{formatMoney(item.value || 0)} (x{formatQty(item.quantity || 1)})</div>
                                     </td>
                                     <td className="p-3 text-center text-gray-400">{item.quantity || 1}</td>
                                     <td className="p-3">
@@ -1293,7 +1322,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
                                             className={cn("w-20 p-1 border rounded text-center focus:outline-none focus:ring-2",
                                                 qCounts[item.id] && parseFloat(qCounts[item.id]) !== (item.quantity || 1) ? "border-amber-400 bg-amber-50" : "border-gray-200"
                                             )}
-                                            placeholder={(item.quantity || 1).toString()}
+                                            placeholder={Number((item.quantity || 1).toFixed(2)).toString()}
                                             value={qCounts[item.id] !== undefined ? qCounts[item.id] : ''}
                                             onChange={e => {
                                                 const newQty = e.target.value;
@@ -1318,7 +1347,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
                                             className={cn("w-28 p-1 border rounded text-right focus:outline-none focus:ring-2 ml-auto block",
                                                 counts[item.id] && parseFloat(counts[item.id]) !== (item.value || 0) ? "border-amber-400 bg-amber-50" : "border-gray-200"
                                             )}
-                                            placeholder={(item.value || 0).toString()}
+                                            placeholder={Math.round(item.value || 0).toString()}
                                             value={counts[item.id] !== undefined ? counts[item.id] : ''}
                                             onChange={e => {
                                                 const val = e.target.value;
@@ -1337,7 +1366,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
                     <div>
                         <div className="text-xs font-bold text-gray-500 uppercase">Ajuste Valor (Diferencia)</div>
                         <div className={cn("text-xl font-black", diff > 0 ? "text-red-600" : "text-green-600")}>
-                            {diff > 0 ? '-' : '+'}₡{Math.abs(diff).toLocaleString()}
+                            {diff > 0 ? '-' : '+'}₡{formatMoney(Math.abs(diff))}
                         </div>
                     </div>
                     <Button onClick={handleSubmit}>Confirmar Ajuste</Button>
@@ -1353,8 +1382,8 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
 
     // State
     const [counts, setCounts] = useState<Record<string, string>>({
-        caja_chica: accounts.caja_chica.toString(),
-        banco: accounts.banco.toString()
+        caja_chica: Math.round(accounts.caja_chica || 0).toString(),
+        banco: Math.round(accounts.banco || 0).toString()
     });
 
     const getDiffValue = (account: 'caja_chica' | 'banco') => {
@@ -1381,7 +1410,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                 type: 'ADJUSTMENT',
                 date: new Date().toISOString(),
                 amount: Math.abs(diffCaja),
-                description: `Ajuste Caja Chica (Dif: ${diffCaja > 0 ? '-' : '+'}₡${Math.abs(diffCaja)})`
+                description: `Ajuste Caja Chica (Dif: ${diffCaja > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffCaja))})`
             });
         }
         if (diffBanco !== 0) {
@@ -1391,7 +1420,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                 type: 'ADJUSTMENT',
                 date: new Date().toISOString(),
                 amount: Math.abs(diffBanco),
-                description: `Ajuste Bancos (Dif: ${diffBanco > 0 ? '-' : '+'}₡${Math.abs(diffBanco)})`
+                description: `Ajuste Bancos (Dif: ${diffBanco > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffBanco))})`
             });
         }
 
@@ -1406,7 +1435,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                 <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center">
                     <div>
                         <div className="text-emerald-800 font-bold mb-1">Caja Chica</div>
-                        <div className="text-xs text-emerald-600">Sistema: ₡{accounts.caja_chica.toLocaleString()}</div>
+                        <div className="text-xs text-emerald-600">Sistema: ₡{formatMoney(accounts.caja_chica)}</div>
                     </div>
                     <div>
                         <input
@@ -1417,7 +1446,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                             value={counts.caja_chica}
                             onChange={e => {
                                 const val = e.target.value;
-                                if (val.includes('-')) return;
+                                if (val.includes('-') || val.includes('.')) return;
                                 setCounts({ ...counts, caja_chica: val });
                             }}
                         />
@@ -1427,7 +1456,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex justify-between items-center">
                     <div>
                         <div className="text-blue-800 font-bold mb-1">Bancos</div>
-                        <div className="text-xs text-blue-600">Sistema: ₡{accounts.banco.toLocaleString()}</div>
+                        <div className="text-xs text-blue-600">Sistema: ₡{formatMoney(accounts.banco)}</div>
                     </div>
                     <div>
                         <input
@@ -1438,7 +1467,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                             value={counts.banco}
                             onChange={e => {
                                 const val = e.target.value;
-                                if (val.includes('-')) return;
+                                if (val.includes('-') || val.includes('.')) return;
                                 setCounts({ ...counts, banco: val });
                             }}
                         />
@@ -1449,7 +1478,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                     <div>
                         <div className="text-xs font-bold text-gray-500 uppercase">Ajuste Valor (Diferencia)</div>
                         <div className={cn("text-xl font-black", totalDiff > 0 ? "text-red-600" : totalDiff < 0 ? "text-green-600" : "text-gray-400")}>
-                            {totalDiff > 0 ? '-' : totalDiff < 0 ? '+' : ''}₡{Math.abs(totalDiff).toLocaleString()}
+                            {totalDiff > 0 ? '-' : totalDiff < 0 ? '+' : ''}₡{formatMoney(Math.abs(totalDiff))}
                         </div>
                     </div>
                     <Button onClick={handleSubmit} disabled={totalDiff === 0}>Confirmar Ajuste</Button>
