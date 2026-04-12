@@ -23,7 +23,7 @@ export const Onboarding = () => {
     const [bank, setBank] = useState('');
 
     // Step 1: Inventory
-    const [invForm, setInvForm] = useState({ name: '', cost: '', stock: '' });
+    const [invForm, setInvForm] = useState({ name: '', cost: '', stock: '', locationId: '' });
     const addInv = () => {
         if (!invForm.name || !invForm.cost) return;
         const trimmed = invForm.name.trim();
@@ -35,10 +35,11 @@ export const Onboarding = () => {
             id: crypto.randomUUID(),
             name: trimmed,
             cost: parseFloat(invForm.cost || '0'),
-            stock: parseFloat(invForm.stock || '0') // Initial stock usually 0 or counted
+            stock: parseFloat(invForm.stock || '0'), // Initial stock usually 0 or counted
+            locationId: invForm.locationId || undefined
         };
         setTempInv([...tempInv, newItem]);
-        setInvForm({ name: '', cost: '', stock: '' });
+        setInvForm({ name: '', cost: '', stock: '', locationId: invForm.locationId }); // Retain location for quick entry
     };
 
     // Step 2: Assets
@@ -166,6 +167,16 @@ export const Onboarding = () => {
                             <Input placeholder="Nombre (ej: Harina 1kg)" value={invForm.name} onChange={e => setInvForm({ ...invForm, name: e.target.value })} />
                             <Input type="number" placeholder="Costo Unit." className="w-32" value={invForm.cost} onChange={e => setInvForm({ ...invForm, cost: e.target.value })} />
                             <Input type="number" placeholder="Cant." className="w-24" value={invForm.stock} onChange={e => setInvForm({ ...invForm, stock: e.target.value })} />
+                            {tempLocations.length > 0 && (
+                                <select 
+                                    className="p-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-jardin-primary"
+                                    value={invForm.locationId}
+                                    onChange={e => setInvForm({ ...invForm, locationId: e.target.value })}
+                                >
+                                    <option value="">Ubicación...</option>
+                                    {tempLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                </select>
+                            )}
                             <Button onClick={addInv}><Plus size={20} /></Button>
                         </div>
                         <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 mb-4">
@@ -178,7 +189,14 @@ export const Onboarding = () => {
                         <div className="bg-gray-50 rounded-xl p-4 min-h-[150px] max-h-[300px] overflow-y-auto space-y-2 mb-6">
                             {tempInv.map((item, idx) => (
                                 <div key={item.id} className="flex justify-between items-center text-sm bg-white p-2 rounded border">
-                                    <span>{item.name} ({formatQty(item.stock)})</span>
+                                    <span>
+                                        {item.name} <span className="text-gray-500 text-xs">({formatQty(item.stock)})</span>
+                                        {item.locationId && tempLocations.find(l => l.id === item.locationId) && (
+                                            <span className="text-xs bg-blue-50 text-blue-700 font-medium px-2 py-0.5 rounded ml-2">
+                                                {tempLocations.find(l => l.id === item.locationId)?.name}
+                                            </span>
+                                        )}
+                                    </span>
                                     <div className="flex items-center gap-4">
                                         <span className="font-mono">₡{item.cost * item.stock}</span>
                                         <button onClick={() => setTempInv(tempInv.filter((_, i) => i !== idx))} className="text-red-500"><Trash2 size={16} /></button>
