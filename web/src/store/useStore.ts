@@ -420,15 +420,12 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 3, // v3 = added locations array
+            version: 4, // v4 = retroactive onboarding transaction
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
                 // --- MIGRATION PLAYBOOK ---
                 console.log('Checking state migration from version:', version);
-                // When you alter the state structure in types.ts (e.g. adding a new required field to InventoryItem),
-                // 1. Increment the `version` number above (e.g., to 3).
-                // 2. Add an `if` block below to mutate the old structure into the new one.
 
                 // v1 → v2 (app v1.0.0 → v1.0.1): assets array added as root field
                 if (version < 2) {
@@ -438,6 +435,63 @@ export const useStore = create<AppState & StoreActions>()(
                 // v2 -> v3 (added locations array)
                 if (version < 3) {
                     if (!state.locations) state.locations = [];
+                }
+
+                // v3 -> v4 (Retroactively generate Initial Onboarding transaction)
+                if (version < 4) {
+                    if (state.initialized && !state.transactions?.some((t: any) => t.details?.isInitialOnboarding)) {
+                        const initialAssets = state.assets || [];
+                        const assetValue = initialAssets.reduce((sum: number, a: any) => sum + (a.value || 0), 0);
+                        
+                        const initialInv = (state.inventory || []).map((i: any) => {
+                            const originBatch = (i.batches && i.batches.length > 0) ? i.batches[0] : { stock: i.stock, cost: i.cost };
+                            return { ...i, stock: originBatch.stock, cost: originBatch.cost };
+                        }).filter((i: any) => i.stock > 0);
+                        
+                        const invValue = initialInv.reduce((sum: number, i: any) => sum + (i.cost * i.stock), 0);
+
+                        let deducedCash = state.accounts?.caja_chica || 0;
+                        let deducedBank = state.accounts?.banco || 0;
+                        (state.transactions || []).forEach((tx: any) => {
+                            if (tx.status === 'VOIDED') return;
+                            const amt = tx.amount || 0;
+                            const method = tx.details?.account || tx.details?.method;
+                            
+                            // Replay backwards
+                            if (tx.type === 'SALE' || (tx.type === 'ADJUSTMENT' && tx.description.includes('+'))) {
+                                if (method === 'caja_chica') deducedCash -= amt;
+                                if (method === 'banco') deducedBank -= amt;
+                            } else if (tx.type === 'PURCHASE' || tx.type === 'EXPENSE' || (tx.type === 'ADJUSTMENT' && tx.description.includes('-'))) {
+                                if (method === 'caja_chica') deducedCash += amt;
+                                if (method === 'banco') deducedBank += amt;
+                            }
+                            if (tx.type === 'INITIALIZATION' && !tx.details?.isInitialOnboarding) {
+                                if (tx.description.toLowerCase().includes('caja chica')) deducedCash -= amt;
+                                if (tx.description.toLowerCase().includes('banco')) deducedBank -= amt;
+                            }
+                        });
+
+                        const retroactiveAporte = {
+                            id: 'legacy-onboarding-' + Date.now(),
+                            type: 'INITIALIZATION' as const,
+                            date: state.transactions && state.transactions.length > 0 
+                                ? new Date(new Date(state.transactions[state.transactions.length - 1].date).getTime() - 60000).toISOString()
+                                : new Date().toISOString(),
+                            amount: deducedCash + deducedBank + invValue + assetValue,
+                            description: 'Aporte de Capital Inicial (Recuperado del Historial)',
+                            details: {
+                                isInitialOnboarding: true,
+                                cash: deducedCash,
+                                bank: deducedBank,
+                                inventoryValue: invValue,
+                                assetsValue: assetValue,
+                                inventoryDetails: initialInv,
+                                assetDetails: initialAssets
+                            }
+                        };
+                        state.transactions = [retroactiveAporte, ...(state.transactions || [])];
+                        state.transactions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    }
                 }
 
                 // Example for future:
