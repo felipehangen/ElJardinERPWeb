@@ -425,7 +425,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 5, // v5 = inventory value recalculation
+            version: 6, // v6 = fix method-less adjustment deductions in initialization
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -504,6 +504,67 @@ export const useStore = create<AppState & StoreActions>()(
                     if (state.accounts && state.inventory) {
                         const trueInvValue = state.inventory.reduce((sum: number, item: any) => sum + ((item.cost || 0) * (item.stock || 0)), 0);
                         state.accounts.inventario = trueInvValue;
+                    }
+                }
+
+                // v5 -> v6 (Fix bank initialization calculation that ignored method-less adjustments)
+                if (version < 6 && state.transactions) {
+                    const onboardingTx = state.transactions.find((t: any) => t.details?.isInitialOnboarding);
+                    if (onboardingTx) {
+                        let deducedCash = state.accounts?.caja_chica || 0;
+                        let deducedBank = state.accounts?.banco || 0;
+                        
+                        (state.transactions || []).forEach((tx: any) => {
+                            if (tx.status === 'VOIDED' || tx.id === onboardingTx.id) return;
+                            const amt = tx.amount || 0;
+                            
+                            let method = tx.details?.account || tx.details?.method;
+                            if (!method && tx.voidingTxId) {
+                                const orig = state.transactions.find((ot: any) => ot.id === tx.voidingTxId);
+                                if (orig) method = orig.details?.account || orig.details?.method;
+                            }
+                            if (!method) {
+                                const desc = (tx.description || '').toLowerCase();
+                                if (desc.includes('banco') || desc.includes('transferencia')) method = 'banco';
+                                if (desc.includes('caja chica') || desc.includes('efectivo') || desc.includes('caja')) method = 'caja_chica';
+                            }
+                            
+                            let isAdditive = false; // adds to bank (e.g. sale, or refunding a purchase)
+                            let isSubtractive = false; // removes from bank (e.g. purchase, or refunding a sale)
+                            
+                            if (tx.type === 'SALE') isAdditive = true;
+                            if (tx.type === 'PURCHASE' || tx.type === 'EXPENSE') isSubtractive = true;
+                            
+                            if (tx.type === 'ADJUSTMENT') {
+                                if (tx.voidingTxId) {
+                                    const orig = state.transactions.find((ot: any) => ot.id === tx.voidingTxId);
+                                    if (orig) {
+                                        if (orig.type === 'SALE') isSubtractive = true; // Refunded a sale (lost money)
+                                        if (orig.type === 'PURCHASE' || orig.type === 'EXPENSE') isAdditive = true; // Refunded a purchase (got money back)
+                                    }
+                                } else {
+                                    if ((tx.description || '').includes('+')) isAdditive = true;
+                                    if ((tx.description || '').includes('-')) isSubtractive = true;
+                                }
+                            }
+                            
+                            // Replay backwards
+                            if (isAdditive) {
+                                if (method === 'caja_chica') deducedCash -= amt;
+                                if (method === 'banco') deducedBank -= amt;
+                            } else if (isSubtractive) {
+                                if (method === 'caja_chica') deducedCash += amt;
+                                if (method === 'banco') deducedBank += amt;
+                            }
+                            if (tx.type === 'INITIALIZATION' && !tx.details?.isInitialOnboarding) {
+                                if ((tx.description || '').toLowerCase().includes('caja chica')) deducedCash -= amt;
+                                if ((tx.description || '').toLowerCase().includes('banco')) deducedBank -= amt;
+                            }
+                        });
+                        
+                        onboardingTx.amount = deducedCash + deducedBank + (onboardingTx.details.inventoryValue || 0) + (onboardingTx.details.assetsValue || 0);
+                        onboardingTx.details.cash = deducedCash;
+                        onboardingTx.details.bank = deducedBank;
                     }
                 }
 

@@ -1410,7 +1410,8 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                 type: 'ADJUSTMENT',
                 date: new Date().toISOString(),
                 amount: Math.abs(diffCaja),
-                description: `Ajuste Caja Chica (Dif: ${diffCaja > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffCaja))})`
+                description: `Ajuste Caja Chica (Dif: ${diffCaja > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffCaja))})`,
+                details: { method: 'caja_chica', diffCaja }
             });
         }
         if (diffBanco !== 0) {
@@ -1420,7 +1421,8 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
                 type: 'ADJUSTMENT',
                 date: new Date().toISOString(),
                 amount: Math.abs(diffBanco),
-                description: `Ajuste Bancos (Dif: ${diffBanco > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffBanco))})`
+                description: `Ajuste Bancos (Dif: ${diffBanco > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffBanco))})`,
+                details: { method: 'banco', diffBanco }
             });
         }
 
