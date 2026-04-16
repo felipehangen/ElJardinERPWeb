@@ -515,7 +515,6 @@ export const useStore = create<AppState & StoreActions>()(
                     let trueBank = 0;
                     
                     (state.transactions || []).forEach((tx: any) => {
-                        if (tx.status === 'VOIDED') return;
                         const amt = tx.amount || 0;
                         
                         let method = tx.details?.account || tx.details?.method;
