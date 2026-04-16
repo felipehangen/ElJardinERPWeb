@@ -6,6 +6,7 @@ import { Plus, Trash2, ArrowRight } from 'lucide-react';
 import type { InventoryItem, AssetItem, Location, Provider } from '../types';
 
 export const Onboarding = () => {
+    const {
         updateAccounts, setInitialized,
         addInventoryItem, addAssetItem,
         addLocation, addProvider, addTransaction
