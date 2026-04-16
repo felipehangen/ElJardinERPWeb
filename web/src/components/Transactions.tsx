@@ -32,6 +32,7 @@ const getTypeColor = (t: string) => {
         case 'EXPENSE': return "bg-red-100 text-red-700";
         case 'PRODUCTION': return "bg-amber-100 text-amber-700";
         case 'ADJUSTMENT': return "bg-purple-100 text-purple-700";
+        case 'INITIALIZATION': return "bg-teal-100 text-teal-700";
         default: return "bg-gray-100 text-gray-700";
     }
 };
@@ -166,6 +167,67 @@ const renderTransactionDetails = (tx: Transaction) => {
                     </div>
                 </div>
             );
+        case 'INITIALIZATION':
+            if (tx.details?.isInitialOnboarding) {
+                return (
+                    <div className="bg-white border rounded-xl p-4 mt-4 space-y-3">
+                        <h4 className="font-bold text-gray-800 text-sm mb-2">Detalle de Aporte Inicial (Onboarding)</h4>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <div>
+                                <span className="text-gray-500 block text-xs">Caja Chica</span>
+                                <span className="font-bold text-gray-800">₡{fmt(tx.details.cash)}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block text-xs">Banco</span>
+                                <span className="font-bold text-gray-800">₡{fmt(tx.details.bank)}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block text-xs">Valor Inventario</span>
+                                <span className="font-bold text-gray-800">₡{fmt(tx.details.inventoryValue)}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block text-xs">Valor Activos</span>
+                                <span className="font-bold text-gray-800">₡{fmt(tx.details.assetsValue)}</span>
+                            </div>
+                        </div>
+
+                        {tx.details.inventoryDetails && tx.details.inventoryDetails.length > 0 && (
+                            <div className="mt-4">
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1 border-b pb-1">Inventario Aportado</span>
+                                <div className="space-y-1">
+                                    {tx.details.inventoryDetails.map((item: any, i: number) => (
+                                        <div key={i} className="flex justify-between text-xs py-1 text-gray-600 border-b border-gray-50 last:border-0">
+                                            <span>{formatQty(item.stock)}x {item.name}</span>
+                                            <span className="font-mono text-gray-500">₡{fmt(item.cost * item.stock)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {tx.details.assetDetails && tx.details.assetDetails.length > 0 && (
+                            <div className="mt-4">
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1 border-b pb-1">Activos Aportados</span>
+                                <div className="space-y-1">
+                                    {tx.details.assetDetails.map((item: any, i: number) => (
+                                        <div key={i} className="flex justify-between text-xs py-1 text-gray-600 border-b border-gray-50 last:border-0">
+                                            <span>{formatQty(item.quantity)}x {item.name}</span>
+                                            <span className="font-mono text-gray-500">₡{fmt(item.value)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+            return (
+                <div className="bg-gray-100 p-4 rounded-xl mt-4">
+                    <div className="text-xs font-bold text-gray-400 uppercase mb-2">Datos Adicionales</div>
+                    <pre className="text-[10px] text-gray-600 font-mono whitespace-pre-wrap break-all">{JSON.stringify(tx.details, null, 2)}</pre>
+                </div>
+            );
         default:
             return (
                 <div className="bg-gray-100 p-4 rounded-xl mt-4">
@@ -264,6 +326,7 @@ export const Transactions = () => {
                             <option value="EXPENSE">Gastos</option>
                             <option value="PRODUCTION">Producción</option>
                             <option value="ADJUSTMENT">Ajustes</option>
+                            <option value="INITIALIZATION">Inicialización / Aportes</option>
                         </select>
                     </div>
                 </div>

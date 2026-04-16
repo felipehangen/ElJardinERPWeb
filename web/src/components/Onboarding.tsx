@@ -6,10 +6,9 @@ import { Plus, Trash2, ArrowRight } from 'lucide-react';
 import type { InventoryItem, AssetItem, Location, Provider } from '../types';
 
 export const Onboarding = () => {
-    const {
         updateAccounts, setInitialized,
         addInventoryItem, addAssetItem,
-        addLocation, addProvider
+        addLocation, addProvider, addTransaction
     } = useStore();
 
     const [step, setStep] = useState(1);
@@ -74,12 +73,29 @@ export const Onboarding = () => {
         const cashVal = parseFloat(cash || '0');
         const bankVal = parseFloat(bank || '0');
 
-        // Calculate totals for accounting
         const totalInvValue = tempInv.reduce((acc, i) => acc + (i.cost * i.stock), 0);
         const totalAssetValue = tempAssets.reduce((acc, a) => acc + a.value, 0);
 
         const initialAccounts = AccountingActions.initializeWithEquity(cashVal, bankVal, totalInvValue, totalAssetValue);
         updateAccounts(() => initialAccounts);
+        
+        addTransaction({
+            id: crypto.randomUUID(),
+            type: 'INITIALIZATION',
+            date: new Date().toISOString(),
+            amount: cashVal + bankVal + totalInvValue + totalAssetValue,
+            description: 'Aporte de Capital Inicial (Onboarding)',
+            details: {
+                isInitialOnboarding: true,
+                cash: cashVal,
+                bank: bankVal,
+                inventoryValue: totalInvValue,
+                assetsValue: totalAssetValue,
+                inventoryDetails: tempInv,
+                assetDetails: tempAssets
+            }
+        });
+
         setInitialized(true);
     };
 
