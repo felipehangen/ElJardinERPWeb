@@ -143,7 +143,7 @@ const renderTransactionDetails = (tx: Transaction) => {
         case 'ADJUSTMENT':
             return (
                 <div className="bg-white border rounded-xl p-4 mt-4 space-y-3">
-                    <h4 className="font-bold text-gray-800 text-sm mb-2">Dictamen de Auditoría y Ajuste</h4>
+                    <h4 className="font-bold text-gray-800 text-sm mb-2">{tx.voidingTxId ? 'Contra-Asiento de Anulación' : 'Dictamen de Auditoría y Ajuste'}</h4>
 
                     {tx.details.account && (
                         <div className="flex justify-between text-sm border-b pb-2 border-gray-100">
@@ -160,9 +160,13 @@ const renderTransactionDetails = (tx: Transaction) => {
                     )}
 
                     <div className="flex justify-between text-sm mt-2 items-center">
-                        <span className="text-gray-500">Clasificación de Impacto:</span>
-                        <span className={cn("text-xs font-bold px-2 py-1 rounded", (tx.cogs !== undefined ? tx.cogs : tx.amount) > 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600")}>
-                            {(tx.cogs !== undefined ? tx.cogs : tx.amount) > 0 ? '⬇ Pérdida (Gasto)' : '⬆ Superávit (Ingreso / Ganancia)'}
+                        <span className="text-gray-500">{tx.voidingTxId ? 'Impacto Financiero de Reversa:' : 'Clasificación de Impacto:'}</span>
+                        <span className={cn("text-xs font-bold px-2 py-1 rounded", 
+                            tx.voidingTxId ? "bg-purple-100 text-purple-700" :
+                            (tx.cogs !== undefined ? tx.cogs : tx.amount) > 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
+                        )}>
+                            {tx.voidingTxId ? '🔀 Reintegro / Descuento Retornado' :
+                            (tx.cogs !== undefined ? tx.cogs : tx.amount) > 0 ? '⬇ Pérdida (Gasto)' : '⬆ Superávit (Ingreso / Ganancia)'}
                         </span>
                     </div>
                 </div>

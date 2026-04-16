@@ -353,11 +353,14 @@ export const useStore = create<AppState & StoreActions>()(
                         if (tx.details?.type === 'inventory') {
                             const relatedItem = updatedInventory.find(i => i.name === tx.details.itemName);
                             if (relatedItem) {
-                                // Instead of writing a complex batch-remover, we just consume the stock again using normal FIFO
-                                // But since this is inside the revert fn, we just manually update stock to keep it simple for now
                                 const qtyToRemove = tx.details.quantity;
                                 const newStock = relatedItem.stock - qtyToRemove;
+                                
+                                // Reduce the physical stock
                                 updatedInventory = updatedInventory.map(i => i.name === relatedItem.name ? { ...i, stock: newStock } : i);
+                                
+                                // Fix missing reduction in Accounting Value
+                                newAccounts.inventario -= tx.amount;
                             }
                         } else if (tx.details?.type === 'asset') {
                             newAccounts.activo_fijo -= tx.amount;
@@ -369,7 +372,9 @@ export const useStore = create<AppState & StoreActions>()(
                     case 'PRODUCTION':
                         // Reverse Output
                         if (tx.details?.outputName) {
+                            const outputCost = updatedInventory.find(i => i.name === tx.details.outputName)?.cost || 0;
                             updatedInventory = updatedInventory.map(i => i.name === tx.details.outputName ? { ...i, stock: i.stock - tx.details.outputQty } : i);
+                            newAccounts.inventario -= (outputCost * tx.details.outputQty);
                         }
                         // Refund Ingredients
                         if (tx.details?.ingredients) {
@@ -420,7 +425,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 4, // v4 = retroactive onboarding transaction
+            version: 5, // v5 = inventory value recalculation
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -491,6 +496,14 @@ export const useStore = create<AppState & StoreActions>()(
                         };
                         state.transactions = [retroactiveAporte, ...(state.transactions || [])];
                         state.transactions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    }
+                }
+
+                // v4 -> v5 (Fix mathematically desynced inventario accumulator caused by reversion bugs)
+                if (version < 5) {
+                    if (state.accounts && state.inventory) {
+                        const trueInvValue = state.inventory.reduce((sum: number, item: any) => sum + ((item.cost || 0) * (item.stock || 0)), 0);
+                        state.accounts.inventario = trueInvValue;
                     }
                 }
 
