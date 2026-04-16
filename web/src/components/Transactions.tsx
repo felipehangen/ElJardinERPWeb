@@ -163,10 +163,10 @@ const renderTransactionDetails = (tx: Transaction) => {
                         <span className="text-gray-500">{tx.voidingTxId ? 'Impacto Financiero de Reversa:' : 'Clasificación de Impacto:'}</span>
                         <span className={cn("text-xs font-bold px-2 py-1 rounded", 
                             tx.voidingTxId ? "bg-purple-100 text-purple-700" :
-                            (tx.cogs !== undefined ? tx.cogs : tx.amount) > 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
+                            (tx.description || '').includes('-') ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
                         )}>
                             {tx.voidingTxId ? '🔀 Reintegro / Descuento Retornado' :
-                            (tx.cogs !== undefined ? tx.cogs : tx.amount) > 0 ? '⬇ Pérdida (Gasto)' : '⬆ Superávit (Ingreso / Ganancia)'}
+                            (tx.description || '').includes('-') ? '⬇ Pérdida (Gasto)' : '⬆ Superávit (Ingreso / Ganancia)'}
                         </span>
                     </div>
                 </div>

@@ -425,7 +425,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 6, // v6 = fix method-less adjustment deductions in initialization
+            version: 7, // v7 = rerun ledger reconciliation to fix double-counted voided items
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -507,10 +507,10 @@ export const useStore = create<AppState & StoreActions>()(
                     }
                 }
 
-                // v5 -> v6 (Strict Forward Ledger Reconciliation for Cash and Bank)
+                // v5 -> v7 (Strict Forward Ledger Reconciliation for Cash and Bank)
                 // Due to tab-sync race conditions, accounts object could drift from the immutable transaction ledger.
                 // We calculate the exact mathematical state strictly from history.
-                if (version < 6 && state.transactions) {
+                if (version < 7 && state.transactions) {
                     let trueCash = 0;
                     let trueBank = 0;
                     
