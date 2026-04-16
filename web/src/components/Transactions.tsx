@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Card, cn, Input, Modal, formatMoney, formatQty } from './ui';
 import { List, X, Download } from 'lucide-react';
@@ -239,8 +239,65 @@ const renderTransactionDetails = (tx: Transaction) => {
 };
 
 export const Transactions = () => {
-    const { transactions, revertTransaction } = useStore();
+    const { transactions, revertTransaction, addTransaction } = useStore();
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+
+    // Self-healing: if the migration failed to run, we inject it here.
+    useEffect(() => {
+        const state = useStore.getState();
+        if (state.initialized && !state.transactions.some(t => t.details?.isInitialOnboarding)) {
+            const initialAssets = state.assets || [];
+            const assetValue = initialAssets.reduce((sum: number, a: any) => sum + (a.value || 0), 0);
+            
+            const initialInv = (state.inventory || []).map((i: any) => {
+                const originBatch = (i.batches && i.batches.length > 0) ? i.batches[0] : { stock: i.stock, cost: i.cost };
+                return { ...i, stock: originBatch.stock, cost: originBatch.cost };
+            }).filter((i: any) => i.stock > 0);
+            
+            const invValue = initialInv.reduce((sum: number, i: any) => sum + (i.cost * i.stock), 0);
+
+            let deducedCash = state.accounts?.caja_chica || 0;
+            let deducedBank = state.accounts?.banco || 0;
+
+            (state.transactions || []).forEach((tx: any) => {
+                if (tx.status === 'VOIDED') return;
+                const amt = tx.amount || 0;
+                const method = tx.details?.account || tx.details?.method;
+                const desc = tx.description || '';
+                
+                if (tx.type === 'SALE' || (tx.type === 'ADJUSTMENT' && desc.includes('+'))) {
+                    if (method === 'caja_chica') deducedCash -= amt;
+                    if (method === 'banco') deducedBank -= amt;
+                } else if (tx.type === 'PURCHASE' || tx.type === 'EXPENSE' || (tx.type === 'ADJUSTMENT' && desc.includes('-'))) {
+                    if (method === 'caja_chica') deducedCash += amt;
+                    if (method === 'banco') deducedBank += amt;
+                }
+                if (tx.type === 'INITIALIZATION' && !tx.details?.isInitialOnboarding) {
+                    if (desc.toLowerCase().includes('caja chica')) deducedCash -= amt;
+                    if (desc.toLowerCase().includes('banco')) deducedBank -= amt;
+                }
+            });
+
+            addTransaction({
+                 id: 'legacy-onboarding-' + Date.now(),
+                 type: 'INITIALIZATION',
+                 date: state.transactions && state.transactions.length > 0 
+                     ? new Date(new Date(state.transactions[state.transactions.length - 1].date).getTime() - 60000).toISOString()
+                     : new Date().toISOString(),
+                 amount: deducedCash + deducedBank + invValue + assetValue,
+                 description: 'Aporte de Capital Inicial (Recuperado del Historial)',
+                 details: {
+                     isInitialOnboarding: true,
+                     cash: deducedCash,
+                     bank: deducedBank,
+                     inventoryValue: invValue,
+                     assetsValue: assetValue,
+                     inventoryDetails: initialInv,
+                     assetDetails: initialAssets
+                 }
+            });
+        }
+    }, [addTransaction]);
 
     // Filter State
     const [filterType, setFilterType] = useState<string>('ALL');
