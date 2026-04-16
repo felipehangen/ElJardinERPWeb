@@ -507,64 +507,71 @@ export const useStore = create<AppState & StoreActions>()(
                     }
                 }
 
-                // v5 -> v6 (Fix bank initialization calculation that ignored method-less adjustments)
+                // v5 -> v6 (Strict Forward Ledger Reconciliation for Cash and Bank)
+                // Due to tab-sync race conditions, accounts object could drift from the immutable transaction ledger.
+                // We calculate the exact mathematical state strictly from history.
                 if (version < 6 && state.transactions) {
-                    const onboardingTx = state.transactions.find((t: any) => t.details?.isInitialOnboarding);
-                    if (onboardingTx) {
-                        let deducedCash = state.accounts?.caja_chica || 0;
-                        let deducedBank = state.accounts?.banco || 0;
+                    let trueCash = 0;
+                    let trueBank = 0;
+                    
+                    (state.transactions || []).forEach((tx: any) => {
+                        if (tx.status === 'VOIDED') return;
+                        const amt = tx.amount || 0;
                         
-                        (state.transactions || []).forEach((tx: any) => {
-                            if (tx.status === 'VOIDED' || tx.id === onboardingTx.id) return;
-                            const amt = tx.amount || 0;
-                            
-                            let method = tx.details?.account || tx.details?.method;
-                            if (!method && tx.voidingTxId) {
+                        let method = tx.details?.account || tx.details?.method;
+                        if (!method && tx.voidingTxId) {
+                            const orig = state.transactions.find((ot: any) => ot.id === tx.voidingTxId);
+                            if (orig) method = orig.details?.account || orig.details?.method;
+                        }
+                        if (!method) {
+                            const desc = (tx.description || '').toLowerCase();
+                            if (desc.includes('banco') || desc.includes('transferencia')) method = 'banco';
+                            if (desc.includes('caja chica') || desc.includes('efectivo') || desc.includes('caja')) method = 'caja_chica';
+                        }
+                        
+                        if (tx.type === 'INITIALIZATION') {
+                            // Initialization is an additive state definition
+                            if (tx.details?.isInitialOnboarding) {
+                                trueCash += (tx.details.cash || 0);
+                                trueBank += (tx.details.bank || 0);
+                            } else {
+                                if (method === 'caja_chica' || (tx.description || '').toLowerCase().includes('caja chica')) trueCash += amt;
+                                if (method === 'banco' || (tx.description || '').toLowerCase().includes('banco')) trueBank += amt;
+                            }
+                            return;
+                        }
+
+                        let isAdditive = false; 
+                        let isSubtractive = false; 
+                        
+                        if (tx.type === 'SALE') isAdditive = true;
+                        if (tx.type === 'PURCHASE' || tx.type === 'EXPENSE') isSubtractive = true;
+                        
+                        if (tx.type === 'ADJUSTMENT') {
+                            if (tx.voidingTxId) {
                                 const orig = state.transactions.find((ot: any) => ot.id === tx.voidingTxId);
-                                if (orig) method = orig.details?.account || orig.details?.method;
-                            }
-                            if (!method) {
-                                const desc = (tx.description || '').toLowerCase();
-                                if (desc.includes('banco') || desc.includes('transferencia')) method = 'banco';
-                                if (desc.includes('caja chica') || desc.includes('efectivo') || desc.includes('caja')) method = 'caja_chica';
-                            }
-                            
-                            let isAdditive = false; // adds to bank (e.g. sale, or refunding a purchase)
-                            let isSubtractive = false; // removes from bank (e.g. purchase, or refunding a sale)
-                            
-                            if (tx.type === 'SALE') isAdditive = true;
-                            if (tx.type === 'PURCHASE' || tx.type === 'EXPENSE') isSubtractive = true;
-                            
-                            if (tx.type === 'ADJUSTMENT') {
-                                if (tx.voidingTxId) {
-                                    const orig = state.transactions.find((ot: any) => ot.id === tx.voidingTxId);
-                                    if (orig) {
-                                        if (orig.type === 'SALE') isSubtractive = true; // Refunded a sale (lost money)
-                                        if (orig.type === 'PURCHASE' || orig.type === 'EXPENSE') isAdditive = true; // Refunded a purchase (got money back)
-                                    }
-                                } else {
-                                    if ((tx.description || '').includes('+')) isAdditive = true;
-                                    if ((tx.description || '').includes('-')) isSubtractive = true;
+                                if (orig) {
+                                    if (orig.type === 'SALE') isSubtractive = true;
+                                    if (orig.type === 'PURCHASE' || orig.type === 'EXPENSE') isAdditive = true; 
                                 }
+                            } else {
+                                if ((tx.description || '').includes('+')) isAdditive = true;
+                                if ((tx.description || '').includes('-')) isSubtractive = true;
                             }
-                            
-                            // Replay backwards
-                            if (isAdditive) {
-                                if (method === 'caja_chica') deducedCash -= amt;
-                                if (method === 'banco') deducedBank -= amt;
-                            } else if (isSubtractive) {
-                                if (method === 'caja_chica') deducedCash += amt;
-                                if (method === 'banco') deducedBank += amt;
-                            }
-                            if (tx.type === 'INITIALIZATION' && !tx.details?.isInitialOnboarding) {
-                                if ((tx.description || '').toLowerCase().includes('caja chica')) deducedCash -= amt;
-                                if ((tx.description || '').toLowerCase().includes('banco')) deducedBank -= amt;
-                            }
-                        });
+                        }
                         
-                        onboardingTx.amount = deducedCash + deducedBank + (onboardingTx.details.inventoryValue || 0) + (onboardingTx.details.assetsValue || 0);
-                        onboardingTx.details.cash = deducedCash;
-                        onboardingTx.details.bank = deducedBank;
+                        if (isAdditive) {
+                            if (method === 'caja_chica') trueCash += amt;
+                            if (method === 'banco') trueBank += amt;
+                        } else if (isSubtractive) {
+                            if (method === 'caja_chica') trueCash -= amt;
+                            if (method === 'banco') trueBank -= amt;
+                        }
+                    });
+                    
+                    if (state.accounts) {
+                        state.accounts.caja_chica = trueCash;
+                        state.accounts.banco = trueBank;
                     }
                 }
 
