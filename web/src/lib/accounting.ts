@@ -50,12 +50,17 @@ export const AccountingActions = {
         salePrice: number,
         cost: number,
         isInventoriable: boolean,
-        method: 'caja_chica' | 'banco'
+        method: 'caja_chica' | 'banco' | 'split',
+        splitAmounts?: { caja_chica: number; banco: number }
     ): Accounts => {
-        let newAcc = {
-            ...prev,
-            [method]: prev[method] + salePrice
-        };
+        let newAcc = { ...prev };
+
+        if (method === 'split' && splitAmounts) {
+            newAcc.caja_chica += splitAmounts.caja_chica;
+            newAcc.banco += splitAmounts.banco;
+        } else {
+            newAcc[method as 'caja_chica' | 'banco'] += salePrice;
+        }
 
         if (isInventoriable) {
             newAcc = {

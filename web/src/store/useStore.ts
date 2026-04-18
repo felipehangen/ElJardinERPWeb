@@ -285,7 +285,17 @@ export const useStore = create<AppState & StoreActions>()(
                 let newAccounts = { ...state.accounts };
 
                 // Helper to reverse liquid cash movement
-                const reverseCash = (method: string, amount: number, isInflowToCompany: boolean) => {
+                const reverseCash = (method: string, amount: number, isInflowToCompany: boolean, splitAmounts?: {caja_chica: number, banco: number}) => {
+                    if (method === 'split' && splitAmounts) {
+                        if (isInflowToCompany) {
+                            newAccounts['caja_chica'] -= splitAmounts.caja_chica;
+                            newAccounts['banco'] -= splitAmounts.banco;
+                        } else {
+                            newAccounts['caja_chica'] += splitAmounts.caja_chica;
+                            newAccounts['banco'] += splitAmounts.banco;
+                        }
+                        return;
+                    }
                     if (!method) return;
                     const accName = method as 'caja_chica' | 'banco';
                     if (isInflowToCompany) {
@@ -328,7 +338,7 @@ export const useStore = create<AppState & StoreActions>()(
 
                 switch (tx.type) {
                     case 'SALE':
-                        reverseCash(tx.details?.method, tx.amount, true);
+                        reverseCash(tx.details?.method, tx.amount, true, tx.details?.splitAmounts);
                         if (tx.details?.cart) {
                             // Reverse FIFO for each item sold
                             // To ensure perfect accounting equation symmetry, the exact COGS that left the balance sheet MUST return.
@@ -560,11 +570,21 @@ export const useStore = create<AppState & StoreActions>()(
                         }
                         
                         if (isAdditive) {
-                            if (method === 'caja_chica') trueCash += amt;
-                            if (method === 'banco') trueBank += amt;
+                            if (method === 'split' && tx.details?.splitAmounts) {
+                                trueCash += (tx.details.splitAmounts.caja_chica || 0);
+                                trueBank += (tx.details.splitAmounts.banco || 0);
+                            } else {
+                                if (method === 'caja_chica') trueCash += amt;
+                                if (method === 'banco') trueBank += amt;
+                            }
                         } else if (isSubtractive) {
-                            if (method === 'caja_chica') trueCash -= amt;
-                            if (method === 'banco') trueBank -= amt;
+                            if (method === 'split' && tx.details?.splitAmounts) {
+                                trueCash -= (tx.details.splitAmounts.caja_chica || 0);
+                                trueBank -= (tx.details.splitAmounts.banco || 0);
+                            } else {
+                                if (method === 'caja_chica') trueCash -= amt;
+                                if (method === 'banco') trueBank -= amt;
+                            }
                         }
                     });
                     

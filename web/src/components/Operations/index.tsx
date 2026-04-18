@@ -6,10 +6,13 @@ import { AccountingActions } from '../../lib/accounting';
 import { AccountingFeedback } from '../AccountingFeedback';
 
 // Shared Payment Selector
-const PaymentMethod = ({ value, onChange }: any) => (
+const PaymentMethod = ({ value, onChange, showSplit = false }: any) => (
     <div className="flex gap-2">
         <button type="button" onClick={() => onChange('caja_chica')} className={cn("flex-1 py-3 px-4 rounded-xl border-2 font-medium transition-all text-sm", value === 'caja_chica' ? "border-jardin-primary bg-green-50 text-jardin-primary" : "border-gray-200 text-gray-500")}>Caja Chica</button>
         <button type="button" onClick={() => onChange('banco')} className={cn("flex-1 py-3 px-4 rounded-xl border-2 font-medium transition-all text-sm", value === 'banco' ? "border-jardin-primary bg-green-50 text-jardin-primary" : "border-gray-200 text-gray-500")}>Banco</button>
+        {showSplit && (
+            <button type="button" onClick={() => onChange('split')} className={cn("flex-1 py-3 px-4 rounded-xl border-2 font-medium transition-all text-sm", value === 'split' ? "border-jardin-primary bg-green-50 text-jardin-primary" : "border-gray-200 text-gray-500")}>Mixto</button>
+        )}
     </div>
 );
 
@@ -358,6 +361,14 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
 };
 
 // 2. Sale
+interface QueuedSale {
+    id: string;
+    cart: { id: string; name: string; price: string; qty: number }[];
+    method: string;
+    splitAmounts?: { caja_chica: number, banco: number };
+    totalAmount: number;
+}
+
 // 2. Sale (Venta con Carrito)
 export const SaleModal = ({ isOpen, onClose }: any) => {
     const {
@@ -370,6 +381,9 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
     const [typedProductName, setTypedProductName] = useState('');
     const [isConfirming, setIsConfirming] = useState(false);
     const [method, setMethod] = useState('caja_chica');
+    const [splitCash, setSplitCash] = useState('');
+    const [splitBank, setSplitBank] = useState('');
+    const [salesQueue, setSalesQueue] = useState<QueuedSale[]>([]);
     const [feedback, setFeedback] = useState<{ isOpen: boolean, prev: any, curr: any, description?: string }>({ isOpen: false, prev: null, curr: null });
 
     const handleCreateProd = (name: string) => {
@@ -402,7 +416,11 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 
     const totalAmount = cart.reduce((sum, item) => sum + ((parseFloat(item.price) || 0) * item.qty), 0);
 
-    const handleSubmit = () => {
+    const splitTotal = (parseFloat(splitCash) || 0) + (parseFloat(splitBank) || 0);
+    const splitValid = method === 'split' ? Math.abs(splitTotal - totalAmount) < 0.01 : true;
+    const isAmountMismatch = method === 'split' && !splitValid;
+
+    const handleAddSaleToQueue = () => {
         // If user typed something but didn't click add/create, do it now
         if (typedProductName.trim()) {
             handleCreateProd(typedProductName);
@@ -410,8 +428,31 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
             return; // Stop here so user can see it added and set price
         }
 
-        if (cart.length === 0 || totalAmount < 0) return;
+        if (cart.length === 0 || totalAmount < 0 || !splitValid) return;
 
+        const newSale: QueuedSale = {
+            id: crypto.randomUUID(),
+            cart: [...cart],
+            method,
+            splitAmounts: method === 'split' ? { caja_chica: parseFloat(splitCash) || 0, banco: parseFloat(splitBank) || 0 } : undefined,
+            totalAmount
+        };
+
+        setSalesQueue([...salesQueue, newSale]);
+        setCart([]);
+        setMethod('caja_chica');
+        setSplitCash('');
+        setSplitBank('');
+    };
+
+    const handleRemoveFromQueue = (id: string) => {
+        setSalesQueue(salesQueue.filter(s => s.id !== id));
+    };
+
+    const totalQueueAmount = salesQueue.reduce((sum, s) => sum + s.totalAmount, 0);
+
+    const handleSubmit = () => {
+        if (salesQueue.length === 0) return;
         setIsConfirming(true);
     };
 
@@ -419,33 +460,38 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
         setIsConfirming(false);
         const prevLedger = { ...accounts, ...getLedgerAccounts() };
 
-        // In the Periodic Inventory Model, sales do not track COGS immediately.
-        // Cost of Goods Sold is realized via physical "Inventory Adjustments" later.
-        let totalCOGS = 0;
-        let isInventoriable = false;
+        let accState = { ...accounts };
 
-        const newAccounts = AccountingActions.registerSale(accounts, totalAmount, totalCOGS, isInventoriable, method as any);
-        updateAccounts(() => newAccounts);
+        salesQueue.forEach(sale => {
+            let totalCOGS = 0;
+            let isInventoriable = false;
 
-        const desc = cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ');
+            accState = AccountingActions.registerSale(accState, sale.totalAmount, totalCOGS, isInventoriable, sale.method as any, sale.splitAmounts);
+            
+            const desc = sale.cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ');
 
-        addTransaction({
-            id: crypto.randomUUID(),
-            type: 'SALE',
-            date: new Date().toISOString(),
-            amount: totalAmount,
-            description: `Venta: ${desc}`,
-            cogs: totalCOGS,
-            details: { cart, method }
+            addTransaction({
+                id: crypto.randomUUID(),
+                type: 'SALE',
+                date: new Date().toISOString(),
+                amount: sale.totalAmount,
+                description: `Venta: ${desc}`,
+                cogs: totalCOGS,
+                details: { cart: sale.cart, method: sale.method, splitAmounts: sale.splitAmounts }
+            });
         });
 
-        // We must fetch from fresh state because updateAccounts and addTransaction run synchronously but getLedgerAccounts relies on the new Tx
+        updateAccounts(() => accState);
+
         const freshState = useStore.getState();
         const currLedger = { ...freshState.accounts, ...freshState.getLedgerAccounts() };
 
-        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Venta Total: ₡${formatMoney(totalAmount)} (${cart.length} items)` });
+        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Se registraron ${salesQueue.length} ventas. Total: ₡${formatMoney(totalQueueAmount)}` });
+        setSalesQueue([]);
         setCart([]);
         setMethod('caja_chica');
+        setSplitCash('');
+        setSplitBank('');
     };
 
     const closeAll = () => {
@@ -516,7 +562,27 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                         <span className="font-black text-2xl text-blue-700">₡{formatMoney(totalAmount)}</span>
                     </div>
 
-                    <PaymentMethod value={method} onChange={setMethod} />
+                    <PaymentMethod value={method} onChange={setMethod} showSplit={true} />
+
+                    {method === 'split' && (
+                        <div className="flex gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                            <div className="flex-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Monto Efectivo</label>
+                                <Input type="number" placeholder="0" value={splitCash} onChange={(e: any) => setSplitCash(e.target.value)} />
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Monto SINPE</label>
+                                <Input type="number" placeholder="0" value={splitBank} onChange={(e: any) => setSplitBank(e.target.value)} />
+                            </div>
+                        </div>
+                    )}
+
+                    {isAmountMismatch && (
+                        <div className="bg-red-50 p-3 rounded-lg border border-red-200 text-red-800 text-xs flex gap-2 items-center">
+                            <span>⚠️</span>
+                            <p><strong>Error:</strong> Los montos ingresados (₡{formatMoney(splitTotal)}) no coinciden con el total a cobrar (₡{formatMoney(totalAmount)}).</p>
+                        </div>
+                    )}
 
                     {totalAmount === 0 && cart.length > 0 && (
                         <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-800 text-xs flex gap-2 items-center">
@@ -526,12 +592,45 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                     )}
 
                     <Button
-                        className="w-full"
-                        onClick={handleSubmit}
-                        disabled={(cart.length === 0 && !typedProductName.trim()) || (cart.length > 0 && totalAmount < 0)}
+                        variant="outline"
+                        className="w-full border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100"
+                        onClick={handleAddSaleToQueue}
+                        disabled={(cart.length === 0 && !typedProductName.trim()) || (cart.length > 0 && totalAmount <= 0) || !splitValid}
                     >
-                        Cobrar ₡{formatMoney(totalAmount)}
+                        <span className="font-bold">Añadir Venta a la Lista</span> (₡{formatMoney(totalAmount)})
                     </Button>
+
+                    {salesQueue.length > 0 && (
+                        <>
+                            <hr className="my-4 border-gray-200" />
+                            <div className="bg-gray-100 p-2 rounded-xl border border-gray-200 max-h-[30vh] overflow-y-auto space-y-2">
+                                <h4 className="text-xs font-bold text-gray-500 uppercase ml-2 mb-2">Ventas Listas para Registrar ({salesQueue.length})</h4>
+                                {salesQueue.map((s, idx) => (
+                                    <div key={s.id} className="flex items-center justify-between bg-white p-2 text-sm rounded shadow-sm border border-gray-100">
+                                        <div className="flex-1">
+                                            <div className="font-medium text-gray-800">Venta {idx + 1}</div>
+                                            <div className="text-[10px] text-gray-400">{s.cart.map(c => `${c.name} (x${c.qty})`).join(', ')}</div>
+                                        </div>
+                                        <div className="text-right mx-2">
+                                            <div className="font-bold text-jardin-primary">₡{formatMoney(s.totalAmount)}</div>
+                                            <div className="text-[10px] text-gray-500 uppercase">{s.method === 'split' ? `Mixto (EF: ₡${formatMoney(s.splitAmounts?.caja_chica || 0)} / SI: ₡${formatMoney(s.splitAmounts?.banco || 0)})` : (s.method === 'caja_chica' ? 'Efectivo' : 'SINPE')}</div>
+                                        </div>
+                                        <button onClick={() => handleRemoveFromQueue(s.id)} className="text-gray-400 hover:text-red-500 p-1">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <Button
+                                className="w-full py-4 text-lg mt-4 shadow-xl"
+                                onClick={handleSubmit}
+                                disabled={salesQueue.length === 0}
+                            >
+                                Registrar Todas ({salesQueue.length}) - ₡{formatMoney(totalQueueAmount)}
+                            </Button>
+                        </>
+                    )}
                 </div>
             </Modal>
 
@@ -539,11 +638,11 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                 isOpen={isConfirming}
                 onClose={() => setIsConfirming(false)}
                 onConfirm={executeSubmit}
-                title="Confirmar Venta"
+                title="Confirmar Múltiples Ventas"
                 data={[
-                    { label: "Items", value: cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ') },
-                    { label: "Monto Total", value: `₡${formatMoney(totalAmount)}`, highlight: true },
-                    { label: "Método de Pago", value: method === 'caja_chica' ? 'Caja Chica' : 'Banco' }
+                    { label: "Total de Ventas (Tickets)", value: salesQueue.length.toString() },
+                    { label: "Monto Total Global", value: `₡${formatMoney(totalQueueAmount)}`, highlight: true },
+                    { label: "Desglose", value: "Asegúrate de haber ingresado todas tus ventas." }
                 ]}
             />
 
