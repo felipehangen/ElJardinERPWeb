@@ -366,7 +366,7 @@ const AccountRow = ({
     );
 };
 
-const PasoAPaso = ({ onClose }: { onClose: () => void }) => {
+const PasoAPaso = () => {
     const { transactions, accounts } = useStore();
     const [stepIndex, setStepIndex] = useState(0);
 
@@ -406,21 +406,11 @@ const PasoAPaso = ({ onClose }: { onClose: () => void }) => {
     const positionLabel = `${snapshots.length - stepIndex} / ${snapshots.length}`;
 
     return (
-        <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-            {/* Top bar */}
-            <div className="flex items-center justify-between">
-                <button
-                    onClick={onClose}
-                    className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-jardin-primary transition-colors"
-                >
-                    <ChevronLeft size={16} />
-                    Lista
-                </button>
-                <div className="text-center">
-                    <div className="font-black text-gray-800 text-lg">{positionLabel}</div>
-                    <div className="text-xs text-gray-400 uppercase tracking-widest">transacción</div>
-                </div>
-                <div className="w-14" />
+        <div className="space-y-4">
+            {/* Position indicator */}
+            <div className="text-center">
+                <div className="font-black text-gray-800 text-lg">{positionLabel}</div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest">transacción</div>
             </div>
 
             {/* Navigation */}
@@ -563,40 +553,63 @@ export const Transactions = () => {
         document.body.removeChild(link);
     };
 
-    if (showPasoAPaso) {
-        return (
-            <div className="max-w-xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
-                <PasoAPaso onClose={() => setShowPasoAPaso(false)} />
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
+            {/* Shared header — always visible */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <List className="text-jardin-primary" />
                     Transacciones
                 </h2>
-                <div className="flex gap-2 flex-wrap">
-                    <button
-                        onClick={() => setShowPasoAPaso(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white text-jardin-primary border border-jardin-primary rounded-xl font-bold hover:bg-jardin-primary hover:text-white transition-all shadow-sm"
-                    >
-                        <History size={18} />
-                        Paso a Paso
-                    </button>
-                    <button
-                        onClick={handleDownloadCSV}
-                        className="flex items-center gap-2 px-4 py-2 bg-jardin-primary text-white rounded-xl font-bold hover:bg-jardin-primary-dark transition-all shadow-lg shadow-jardin-primary/20"
-                    >
-                        <Download size={18} />
-                        Descargar CSV
-                    </button>
+                <div className="flex items-center gap-2">
+                    {/* Tab switcher */}
+                    <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+                        <button
+                            onClick={() => setShowPasoAPaso(false)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all",
+                                !showPasoAPaso
+                                    ? "bg-white text-jardin-primary shadow-sm"
+                                    : "text-gray-500 hover:text-gray-700"
+                            )}
+                        >
+                            <List size={15} />
+                            Lista
+                        </button>
+                        <button
+                            onClick={() => setShowPasoAPaso(true)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all",
+                                showPasoAPaso
+                                    ? "bg-white text-jardin-primary shadow-sm"
+                                    : "text-gray-500 hover:text-gray-700"
+                            )}
+                        >
+                            <History size={15} />
+                            Paso a Paso
+                        </button>
+                    </div>
+                    {/* CSV only in list mode */}
+                    {!showPasoAPaso && (
+                        <button
+                            onClick={handleDownloadCSV}
+                            className="flex items-center gap-2 px-4 py-2 bg-jardin-primary text-white rounded-xl font-bold hover:bg-jardin-primary-dark transition-all shadow-lg shadow-jardin-primary/20"
+                        >
+                            <Download size={18} />
+                            CSV
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <Card className="space-y-4 shadow-sm border border-gray-100">
+            {/* Paso a Paso panel */}
+            {showPasoAPaso && (
+                <div className="max-w-xl mx-auto">
+                    <PasoAPaso />
+                </div>
+            )}
+
+            {!showPasoAPaso && <Card className="space-y-4 shadow-sm border border-gray-100">
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-end border-b pb-4">
                     <div className="flex flex-wrap gap-4 w-full md:w-auto">
                         <div className="flex flex-col">
@@ -680,10 +693,10 @@ export const Transactions = () => {
                 <div className="text-right text-xs text-gray-400">
                     Mostrando {filteredTransactions.length} transacciones
                 </div>
-            </Card>
+            </Card>}
 
             {/* Transaction Detail Modal */}
-            {selectedTx && (
+            {!showPasoAPaso && selectedTx && (
                 <Modal isOpen={!!selectedTx} onClose={() => setSelectedTx(null)} title="Detalle de Transacción">
                     <div className="space-y-6">
                         <div className="flex justify-between items-center border-b pb-4">
