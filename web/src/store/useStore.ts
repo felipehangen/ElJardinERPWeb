@@ -352,10 +352,9 @@ export const useStore = create<AppState & StoreActions>()(
                                 reInjectedValue += itemCogsShare;
                                 reverseInventoryFIFO(cartItem.id, cartItem.qty, itemCogsShare);
                             });
-
-                            // Accounts 'inventario' is technically dynamically computed as sum of stock * cost
-                            // reverseInventoryFIFO naturally bumps this value up.
                         }
+                        // Reverse net profit: Dr. Patrimonio / Cr. Utilidad (removes the profit that was recorded)
+                        newAccounts.patrimonio = (newAccounts.patrimonio || 0) - (tx.amount - (tx.cogs || 0));
                         break;
                     case 'PURCHASE':
                         reverseCash(tx.details?.method, tx.amount, false);
@@ -378,6 +377,8 @@ export const useStore = create<AppState & StoreActions>()(
                         break;
                     case 'EXPENSE':
                         reverseCash(tx.details?.method, tx.amount, false);
+                        // Reverse equity hit: Dr. Cash / Cr. Patrimonio (restores equity reduced when expense was paid)
+                        newAccounts.patrimonio = (newAccounts.patrimonio || 0) + tx.amount;
                         break;
                     case 'PRODUCTION':
                         // Reverse Output
@@ -409,8 +410,10 @@ export const useStore = create<AppState & StoreActions>()(
                         if (tx.details?.itemsAdjusted !== undefined) {
                             // Reversing a physical inventory shrinkage: restore the lost value to patrimonio.
                             // Physical stock restoration is omitted to avoid FIFO batch complexity.
-                            const lostValue = tx.cogs || 0;
-                            if (lostValue > 0) {
+                            const lostValue = tx.cogs ?? 0;
+                            if (lostValue !== 0) {
+                                // lostValue > 0: was a LOSS → restore inventario and patrimonio
+                                // lostValue < 0: was a GAIN → reduce inventario and patrimonio
                                 newAccounts.inventario = (newAccounts.inventario || 0) + lostValue;
                                 newAccounts.patrimonio = (newAccounts.patrimonio || 0) + lostValue;
                             }
@@ -448,7 +451,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 8, // v8 = recompute patrimonio from full transaction history
+            version: 9, // v9 = fix patrimonio drift from buggy SALE/EXPENSE reversals
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -613,6 +616,14 @@ export const useStore = create<AppState & StoreActions>()(
                 // banco/caja, so total assets are now the ground truth. Since this business
                 // has no liabilities, Assets = Equity, and we set patrimonio accordingly.
                 if (version < 8 && state.accounts) {
+                    const { banco = 0, caja_chica = 0, inventario = 0, activo_fijo = 0 } = state.accounts;
+                    state.accounts.patrimonio = banco + caja_chica + inventario + activo_fijo;
+                }
+
+                // v8 -> v9: Same reset — corrects patrimonio drift from SALE and EXPENSE reversals
+                // that didn't update patrimonio (bug fixed in v1.0.3). Since this business has no
+                // liabilities, Assets = Equity is always the ground truth.
+                if (version < 9 && state.accounts) {
                     const { banco = 0, caja_chica = 0, inventario = 0, activo_fijo = 0 } = state.accounts;
                     state.accounts.patrimonio = banco + caja_chica + inventario + activo_fijo;
                 }
