@@ -19,6 +19,7 @@ export const AccountingActions = {
     },
 
     // 2. Purchase (Inventario) -> Inventory
+    // Asset exchange: cash leaves, inventory enters. No P&L impact, patrimonio unchanged.
     purchaseInventory: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => {
         return {
             ...prev,
@@ -28,6 +29,7 @@ export const AccountingActions = {
     },
 
     // Purchase (Asset) -> Fixed Asset
+    // Asset exchange: cash leaves, fixed asset enters. No P&L impact, patrimonio unchanged.
     purchaseAsset: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => {
         return {
             ...prev,
@@ -37,14 +39,18 @@ export const AccountingActions = {
     },
 
     // 3. Payment (Expense) -> Expense
+    // Cash decreases AND equity decreases (loss recognized). Dr. Gastos / Cr. Cash.
     payExpense: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => {
         return {
             ...prev,
-            [method]: prev[method] - amount
+            [method]: prev[method] - amount,
+            patrimonio: (prev.patrimonio || 0) - amount
         };
     },
 
     // 4. Sale
+    // Cash increases by revenue, inventory decreases by COGS (if inventoriable),
+    // and equity increases by net profit (revenue - COGS).
     registerSale: (
         prev: Accounts,
         salePrice: number,
@@ -61,6 +67,9 @@ export const AccountingActions = {
         } else {
             newAcc[method as 'caja_chica' | 'banco'] += salePrice;
         }
+
+        const netProfit = salePrice - (isInventoriable ? cost : 0);
+        newAcc.patrimonio = (newAcc.patrimonio || 0) + netProfit;
 
         if (isInventoriable) {
             newAcc = {
@@ -83,37 +92,43 @@ export const AccountingActions = {
 
     // 6. Inventory Adjustment (Shortfall/Surplus) - Batch
     // diffValue: Positive means LOSS (System > Real). Negative means GAIN (System < Real).
+    // Inventory account and patrimonio move together: Dr/Cr Pérdida-Ganancia / Cr/Dr Inventario.
     adjustInventoryValues: (prev: Accounts, totalDiffValue: number): Accounts => {
         if (totalDiffValue > 0) {
-            // LOSS (Missing items) -> Expense/Cost
+            // LOSS (Missing items) -> reduces both inventory asset and equity
             return {
                 ...prev,
-                inventario: prev.inventario - totalDiffValue
+                inventario: prev.inventario - totalDiffValue,
+                patrimonio: (prev.patrimonio || 0) - totalDiffValue
             };
         } else {
-            // GAIN (Found items) -> Reduce Cost
+            // GAIN (Found items) -> increases both inventory asset and equity
             const absDiff = Math.abs(totalDiffValue);
             return {
                 ...prev,
-                inventario: prev.inventario + absDiff
+                inventario: prev.inventario + absDiff,
+                patrimonio: (prev.patrimonio || 0) + absDiff
             };
         }
     },
 
-    // 7. Audit (Missing Cash)
+    // 7. Audit (Missing/Surplus Cash)
+    // Cash account is set to real value; the difference hits equity (loss or gain).
+    // Dr. Pérdida por Ajuste / Cr. Cash  (for a shortfall)
+    // Dr. Cash / Cr. Ganancia por Ajuste (for a surplus)
     auditCash: (prev: Accounts, systemValue: number, realValue: number, account: 'caja_chica' | 'banco'): Accounts => {
-        const diff = systemValue - realValue; // System 100, Real 90, Diff 10 (Missing)
+        const diff = systemValue - realValue; // positive = shortfall (we lost cash)
         if (diff > 0) {
             return {
                 ...prev,
-                [account]: prev[account] - diff
+                [account]: prev[account] - diff,
+                patrimonio: (prev.patrimonio || 0) - diff
             };
         }
-        // If Surplus, treated as Gain (Revenue) or Expense Reduction. Simplified as Other Income (Sale) here?
-        // For safety, let's treat as Sales/Other Income
         return {
             ...prev,
-            [account]: prev[account] + Math.abs(diff)
+            [account]: prev[account] + Math.abs(diff),
+            patrimonio: (prev.patrimonio || 0) + Math.abs(diff)
         };
     }
 };

@@ -393,17 +393,30 @@ export const useStore = create<AppState & StoreActions>()(
                             });
                         }
                         break;
-                    case 'ADJUSTMENT':
-                        if (tx.details?.account) {
-                            // It was a cash adjust
+                    case 'ADJUSTMENT': {
+                        // Cash adjustments store their account under details.method (not details.account)
+                        const cashAccount = tx.details?.account || tx.details?.method;
+                        if (cashAccount === 'caja_chica' || cashAccount === 'banco') {
                             const isLoss = tx.description.includes('-');
-                            reverseCash(tx.details.account, tx.amount, !isLoss);
+                            reverseCash(cashAccount, tx.amount, !isLoss);
+                            // Reverse the patrimonio effect of the original auditCash call
+                            if (isLoss) {
+                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) + tx.amount;
+                            } else {
+                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) - tx.amount;
+                            }
                         }
                         if (tx.details?.itemsAdjusted !== undefined) {
-                            // It was an inventory adjust. Reversing a shrinkage means re-adding the lost items.
-                            // Simplification: We don't natively refund physical adjustments yet to avoid extreme complexity in batch dates.
+                            // Reversing a physical inventory shrinkage: restore the lost value to patrimonio.
+                            // Physical stock restoration is omitted to avoid FIFO batch complexity.
+                            const lostValue = tx.cogs || 0;
+                            if (lostValue > 0) {
+                                newAccounts.inventario = (newAccounts.inventario || 0) + lostValue;
+                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) + lostValue;
+                            }
                         }
                         break;
+                    }
                 }
 
                 // 2. Mark Original as Voided
@@ -435,7 +448,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 7, // v7 = rerun ledger reconciliation to fix double-counted voided items
+            version: 8, // v8 = recompute patrimonio from full transaction history
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -594,10 +607,15 @@ export const useStore = create<AppState & StoreActions>()(
                     }
                 }
 
-                // Example for future:
-                // if (version < 3) {
-                //     state.inventory = state.inventory.map((item: any) => ({ ...item, newRequiredField: false }));
-                // }
+                // v7 -> v8: Reset patrimonio to match total assets.
+                // Prior versions never updated patrimonio on expenses, sales, or adjustments,
+                // causing equity to drift. v5 already corrected inventario and v7 corrected
+                // banco/caja, so total assets are now the ground truth. Since this business
+                // has no liabilities, Assets = Equity, and we set patrimonio accordingly.
+                if (version < 8 && state.accounts) {
+                    const { banco = 0, caja_chica = 0, inventario = 0, activo_fijo = 0 } = state.accounts;
+                    state.accounts.patrimonio = banco + caja_chica + inventario + activo_fijo;
+                }
 
                 return state as AppState & StoreActions;
             }
