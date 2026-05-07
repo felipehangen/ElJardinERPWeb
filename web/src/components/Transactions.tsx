@@ -237,14 +237,12 @@ function computeBaseForwardDelta(tx: Transaction): Partial<BalanceWithPL> {
         case 'ADJUSTMENT': {
             const cashAccount = tx.details?.method;
             if (cashAccount === 'caja_chica' || cashAccount === 'banco') {
+                // Use stored diff value; fall back to description sign if field is missing (legacy data)
                 const rawDiff = cashAccount === 'caja_chica'
                     ? (tx.details?.diffCaja ?? 0)
                     : (tx.details?.diffBanco ?? 0);
-                if (rawDiff > 0) {
-                    // Loss: system > real, cash went down
-                    return { [cashAccount]: -tx.amount, patrimonio: -tx.amount } as Partial<BalanceWithPL>;
-                }
-                // Gain: system < real, cash went up
+                const isLoss = rawDiff !== 0 ? rawDiff > 0 : tx.description.includes('(Dif: -');
+                if (isLoss) return { [cashAccount]: -tx.amount, patrimonio: -tx.amount } as Partial<BalanceWithPL>;
                 return { [cashAccount]: tx.amount, patrimonio: tx.amount } as Partial<BalanceWithPL>;
             }
             if (tx.details?.itemsAdjusted !== undefined) {
@@ -252,11 +250,10 @@ function computeBaseForwardDelta(tx: Transaction): Partial<BalanceWithPL> {
                 const diff = tx.cogs ?? 0;
                 return { inventario: -diff, patrimonio: -diff };
             }
-            if (tx.description?.toLowerCase().includes('activo')) {
-                // Asset count adjustment
-                const isLoss = tx.description.includes('-');
-                if (isLoss) return { activo_fijo: -tx.amount, patrimonio: -tx.amount };
-                return { activo_fijo: tx.amount, patrimonio: tx.amount };
+            if (tx.details?.diff !== undefined) {
+                // Toma de Activos Físicos: tx.cogs = diff (positive=loss, negative=gain)
+                const diff = tx.cogs ?? 0;
+                return { activo_fijo: -diff, patrimonio: -diff };
             }
             return {};
         }

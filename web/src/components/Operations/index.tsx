@@ -1359,9 +1359,11 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
         batchUpdateAssets(itemUpdates);
 
         // Accounting Adjustment
+        // diff > 0: system value > real value → LOSS (activo_fijo and patrimonio decrease)
+        // diff < 0: system value < real value → GAIN (activo_fijo and patrimonio increase)
         const newAccounts = { ...accounts };
         newAccounts.activo_fijo = (newAccounts.activo_fijo || 0) - diff;
-        newAccounts.gastos = (newAccounts.gastos || 0) + diff;
+        newAccounts.patrimonio = (newAccounts.patrimonio || 0) - diff;
 
         updateAccounts(() => newAccounts);
 

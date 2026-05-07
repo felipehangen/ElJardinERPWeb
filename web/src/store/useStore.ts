@@ -418,6 +418,16 @@ export const useStore = create<AppState & StoreActions>()(
                                 newAccounts.patrimonio = (newAccounts.patrimonio || 0) + lostValue;
                             }
                         }
+                        if (tx.description?.toLowerCase().includes('activo') && tx.details?.diff !== undefined) {
+                            // Reversing an asset count adjustment.
+                            // tx.cogs = diff where diff > 0 = LOSS, diff < 0 = GAIN.
+                            // Original reduced activo_fijo and patrimonio by diff; reversal adds it back.
+                            const assetDiff = tx.cogs ?? 0;
+                            if (assetDiff !== 0) {
+                                newAccounts.activo_fijo = (newAccounts.activo_fijo || 0) + assetDiff;
+                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) + assetDiff;
+                            }
+                        }
                         break;
                     }
                 }
@@ -451,7 +461,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 9, // v9 = fix patrimonio drift from buggy SALE/EXPENSE reversals
+            version: 10, // v10 = fix patrimonio drift from asset adjustments never updating patrimonio
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -624,6 +634,13 @@ export const useStore = create<AppState & StoreActions>()(
                 // that didn't update patrimonio (bug fixed in v1.0.3). Since this business has no
                 // liabilities, Assets = Equity is always the ground truth.
                 if (version < 9 && state.accounts) {
+                    const { banco = 0, caja_chica = 0, inventario = 0, activo_fijo = 0 } = state.accounts;
+                    state.accounts.patrimonio = banco + caja_chica + inventario + activo_fijo;
+                }
+
+                // v9 -> v10: Same reset — corrects patrimonio drift from asset count adjustments
+                // (Toma de Activos Físicos) that updated activo_fijo but never patrimonio (bug fixed in v1.0.4).
+                if (version < 10 && state.accounts) {
                     const { banco = 0, caja_chica = 0, inventario = 0, activo_fijo = 0 } = state.accounts;
                     state.accounts.patrimonio = banco + caja_chica + inventario + activo_fijo;
                 }
