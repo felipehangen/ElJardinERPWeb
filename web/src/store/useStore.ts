@@ -505,7 +505,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 11, // v11 = full clean reset; fixes purchase FIFO reversal + cash adj reversal reliability
+            version: 12, // v12 = full clean reset; production launch with clean slate
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -693,7 +693,7 @@ export const useStore = create<AppState & StoreActions>()(
                 // Fixes: (1) purchase reversal now removes the exact FIFO batch via stored batchId;
                 // (2) cash adjustment reversal now uses stored numeric diff instead of string parsing.
                 // Old data is incompatible with the new batchId tracking, so we start fresh.
-                if (version < 11) {
+                if (version < 12) {
                     return { ...INITIAL_STATE } as any;
                 }
 
