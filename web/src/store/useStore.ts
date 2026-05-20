@@ -446,13 +446,21 @@ export const useStore = create<AppState & StoreActions>()(
                         break;
 
                     case 'PRODUCTION': {
-                        // Remove output stock from physical inventory
+                        // Remove output stock from physical inventory.
+                        // Guard: if the output was already partially consumed, clamp to 0 rather
+                        // than letting stock go negative (which would silently corrupt the ledger).
                         if (tx.details?.outputName) {
-                            updatedInventory = updatedInventory.map(i =>
-                                (tx.details.outputId ? i.id === tx.details.outputId : i.name === tx.details.outputName)
-                                    ? { ...i, stock: i.stock - tx.details.outputQty }
-                                    : i
-                            );
+                            updatedInventory = updatedInventory.map(i => {
+                                if (!(tx.details.outputId ? i.id === tx.details.outputId : i.name === tx.details.outputName)) return i;
+                                const newStock = i.stock - tx.details.outputQty;
+                                if (newStock < 0) {
+                                    console.warn(
+                                        `revertTransaction PRODUCTION: output "${i.name}" stock is ${i.stock} ` +
+                                        `but reversal needs to remove ${tx.details.outputQty}. Clamping to 0.`
+                                    );
+                                }
+                                return { ...i, stock: Math.max(0, newStock) };
+                            });
                         }
                         // Restore ingredient stock via FIFO refund batches
                         if (tx.details?.ingredients) {

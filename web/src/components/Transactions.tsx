@@ -112,6 +112,32 @@ const renderTransactionDetails = (tx: Transaction) => {
                     )}
                 </div>
             );
+        case 'PRODUCTION':
+            return (
+                <div className="bg-white border rounded-xl p-4 mt-4 space-y-3">
+                    <h4 className="font-bold text-gray-800 text-sm mb-2">Detalle de Producción</h4>
+                    <div className="flex justify-between text-sm border-b pb-2 border-gray-100">
+                        <span className="text-gray-500">Producto Resultante:</span>
+                        <span className="font-medium text-gray-800">{tx.details.outputName} (x{formatQty(tx.details.outputQty)})</span>
+                    </div>
+                    {tx.details.ingredients?.length > 0 && (
+                        <div>
+                            <div className="text-xs font-bold text-gray-400 uppercase mb-1">Ingredientes Consumidos</div>
+                            {(tx.details.ingredients as any[]).map((ing: any, i: number) => (
+                                <div key={i} className="flex justify-between text-sm py-1 border-b last:border-0 border-gray-100">
+                                    <span className="text-gray-600">{formatQty(parseFloat(ing.qty))}x {ing.item.name}</span>
+                                    <span className="text-gray-400 font-mono text-xs">~₡{formatMoney(ing.item.cost * parseFloat(ing.qty))}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div className="flex justify-between text-sm font-bold text-amber-700 pt-1">
+                        <span>Costo Total FIFO Exacto</span>
+                        <span>₡{fmt(tx.amount)}</span>
+                    </div>
+                </div>
+            );
+
         case 'ADJUSTMENT':
             if (tx.details.itemsAdjusted !== undefined) {
                 return (

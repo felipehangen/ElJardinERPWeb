@@ -125,13 +125,28 @@ export interface CashAdjustmentDetails {
 }
 
 export interface InventoryCountDetails {
-    itemsAdjusted: Array<{ name: string; qty: number; sysVal?: number }>;
+    itemsAdjusted: number;              // count of items whose physical stock differed
+    exactTotalDiff: number;             // total financial change (positive = loss, negative = gain)
+    counts: Record<string, string>;     // raw user input: { itemId → typed string count }
+    itemDetails: Array<{
+        id: string;
+        name: string;
+        sys: number;                    // system stock before count
+        real: number;                   // physical stock entered by user
+        financialDiff: number;          // cost impact (positive = loss)
+    }>;
 }
 
 export interface AssetCountDetails {
-    diff: number;
-    counts: Record<string, number>;
-    itemDetails: Array<{ id: string; name?: string; sysVal: number; realVal?: number }>;
+    diff: number;                       // total financial difference (positive = loss, negative = gain)
+    counts: Record<string, string>;     // raw user input: { assetId → typed value string }
+    itemDetails: Array<{
+        id: string;
+        name: string;
+        sysVal: number;                 // system value before count
+        realVal: number;                // physical value entered by user
+        financialDiff: number;          // sysVal − realVal (positive = loss)
+    }>;
 }
 
 export interface InitializationDetails {
