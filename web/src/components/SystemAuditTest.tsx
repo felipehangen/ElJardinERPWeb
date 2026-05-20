@@ -2,264 +2,414 @@ import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { Button, Card, cn } from './ui';
 import { AccountingActions } from '../lib/accounting';
-export const SystemAuditTest = () => {
-    const [logs, setLogs] = useState<string[]>([]);
-    const [isSuccess, setIsSuccess] = useState<boolean | null>(null);
+import { INITIAL_STATE } from '../types';
 
-    const log = (msg: string) => {
-        setLogs(prev => [...prev, msg]);
-    };
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+type LogEntry = { msg: string; kind: 'step' | 'ok' | 'fail' | 'info' };
+
+const snap = () => {
+    const s = useStore.getState();
+    const { banco = 0, caja_chica = 0, inventario = 0, activo_fijo = 0, patrimonio = 0 } = s.accounts;
+    return { banco, caja_chica, inventario, activo_fijo, patrimonio, total: banco + caja_chica + inventario + activo_fijo };
+};
+
+// ─── component ──────────────────────────────────────────────────────────────
+
+export const SystemAuditTest = () => {
+    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [summary, setSummary] = useState<{ passed: number; failed: number } | null>(null);
 
     const runAudit = () => {
-        setLogs([]);
-        setIsSuccess(null);
-        log("Iniciando auditoría de sistema... Reseteando estado a valores de fábrica.");
+        const entries: LogEntry[] = [];
+        let passed = 0;
+        let failed = 0;
 
-        // We MUST reset state so legacy items don't throw off the exact asset calculations.
-        useStore.getState().importState({
-            initialized: true,
-            accounts: { caja_chica: 0, banco: 0, inventario: 0, activo_fijo: 0, patrimonio: 0 },
-            inventory: [],
-            products: [
-                { id: crypto.randomUUID(), name: "Pan Casero", price: 500 },
-                { id: crypto.randomUUID(), name: "Café Negro", price: 1000 }
-            ],
-            providers: [
-                { id: crypto.randomUUID(), name: "Proveedor Harina S.A." },
-                { id: crypto.randomUUID(), name: "Granja Avícola" }
-            ],
-            expenseTypes: [
-                { id: crypto.randomUUID(), name: "Agua y Luz" },
-                { id: crypto.randomUUID(), name: "Planilla" }
-            ],
-            transactions: [],
-            assets: [],
-            locations: []
-        });
+        const log = (msg: string, kind: LogEntry['kind'] = 'info') =>
+            entries.push({ msg, kind });
 
-        const state = useStore.getState();
+        const ok = (label: string, detail = '') => {
+            log(`✅ ${label}${detail ? '  →  ' + detail : ''}`, 'ok');
+            passed++;
+        };
+        const fail = (label: string, detail = '') => {
+            log(`❌ ${label}${detail ? '  →  ' + detail : ''}`, 'fail');
+            failed++;
+        };
+        const step = (n: number, title: string) =>
+            log(`── [${n}] ${title}`, 'step');
 
-        log("1. Inyección de Capital Extra");
-        state.updateAccounts(prev => ({
+        /** Core invariant: Assets = Equity (no liabilities in this business) */
+        const checkEq = (label: string) => {
+            const { banco, caja_chica, inventario, activo_fijo, patrimonio, total } = snap();
+            const diff = Math.abs(total - patrimonio);
+            if (diff < 0.02) {
+                ok(`Assets = Equity  [${label}]`,
+                    `₡${total.toFixed(0)} = ₡${patrimonio.toFixed(0)}`);
+            } else {
+                fail(`Assets ≠ Equity  [${label}]`,
+                    `Assets ₡${total.toFixed(0)} | Patrimonio ₡${patrimonio.toFixed(0)} | Diff ₡${diff.toFixed(2)} | B:${banco.toFixed(0)} CC:${caja_chica.toFixed(0)} Inv:${inventario.toFixed(0)} AF:${activo_fijo.toFixed(0)}`);
+            }
+        };
+
+        /** After reverting a tx, verify accounts returned to the snapshot taken before the tx */
+        const checkRevert = (label: string, before: ReturnType<typeof snap>) => {
+            const after = snap();
+            const keys: (keyof typeof before)[] = ['banco', 'caja_chica', 'inventario', 'activo_fijo', 'patrimonio'];
+            let allMatch = true;
+            for (const k of keys) {
+                if (Math.abs((before[k] as number) - (after[k] as number)) > 0.02) {
+                    fail(`Reversal restored ${k}  [${label}]`,
+                        `expected ₡${(before[k] as number).toFixed(0)}, got ₡${(after[k] as number).toFixed(0)}`);
+                    allMatch = false;
+                }
+            }
+            if (allMatch) ok(`Reversal restored all accounts  [${label}]`);
+            checkEq(`post-void ${label}`);
+        };
+
+        // ────────────────────────────────────────────────────────────────────
+        log('══════════════════════════════════════════════', 'step');
+        log('  EL JARDIN ERP — Simulación Contable v1.0.5', 'step');
+        log('══════════════════════════════════════════════', 'step');
+
+        // 0. Reset to absolute blank slate
+        step(0, 'Reset a estado limpio');
+        useStore.getState().importState({ ...INITIAL_STATE, initialized: true });
+        checkEq('estado inicial');
+
+        // ── IDs we'll reuse across steps
+        const harinaId = crypto.randomUUID();
+        const panId    = crypto.randomUUID();
+        let harinaBatchId: string;
+        let purchaseTxId: string;
+        let saleTxId:     string;
+        let expenseTxId:  string;
+        let cashAdjTxId:  string;
+        let invAdjTxId:   string;
+        let assetAdjTxId: string;
+        let assetBuyTxId: string;
+
+        // ════════════════════════════════════════════════════════════════════
+        log('', 'info');
+        log('▶ FASE 1: Transacciones Hacia Adelante', 'step');
+        log('', 'info');
+
+        // ── 1. Capital injection
+        step(1, 'Inyección de Capital (banco ₡100k + caja ₡50k)');
+        useStore.getState().updateAccounts(prev => ({
             ...prev,
             banco: prev.banco + 100000,
             caja_chica: prev.caja_chica + 50000,
-            patrimonio: prev.patrimonio + 150000
+            patrimonio: prev.patrimonio + 150000,
         }));
-        state.addTransaction({
-            id: crypto.randomUUID(), type: 'INITIALIZATION', date: new Date().toISOString(), amount: 150000, description: "Aporte de Capital (Simulación)"
+        useStore.getState().addTransaction({
+            id: crypto.randomUUID(), type: 'INITIALIZATION',
+            date: new Date().toISOString(), amount: 150000,
+            description: 'Aporte de Capital (Simulación)',
+            details: { isInitialOnboarding: true, cash: 50000, bank: 100000, inventoryValue: 0, assetsValue: 0 }
         });
+        checkEq('post-capital');
 
-        log("2. Comprando Artículo de Inventario (Harina x10 a ₡1000 c/u) pagado con Banco");
-        let harina = state.inventory.find(i => i.name === "Harina");
-        const harinaId = harina ? harina.id : crypto.randomUUID();
-        const harinaBatch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 10, cost: 1000 };
-        if (harina) {
-            const existingBatches = harina.batches && harina.batches.length > 0 ? [...harina.batches] : [{ id: 'legacy-harina', date: new Date(0).toISOString(), cost: harina.cost, stock: harina.stock }];
-            state.updateInventoryItem(harinaId, {
-                stock: harina.stock + 10,
-                cost: (harina.cost * harina.stock + 10000) / (harina.stock + 10),
-                batches: [...existingBatches, harinaBatch]
+        // ── 2. Purchase inventory (Harina x10 @₡1000)
+        step(2, 'Compra Inventario: Harina x10 @₡1000 c/u (banco)');
+        {
+            harinaBatchId = crypto.randomUUID();
+            const batch = { id: harinaBatchId, date: new Date().toISOString(), stock: 10, cost: 1000 };
+            useStore.getState().addInventoryItem({ id: harinaId, name: 'Harina', cost: 1000, stock: 10, batches: [batch] });
+            useStore.getState().updateAccounts(prev => AccountingActions.purchaseInventory(prev, 10000, 'banco'));
+            purchaseTxId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: purchaseTxId, type: 'PURCHASE', date: new Date().toISOString(), amount: 10000,
+                description: 'Compra Inventario: Harina (x10)',
+                details: { itemId: harinaId, itemName: 'Harina', batchId: harinaBatchId, quantity: 10, method: 'banco', type: 'inventory' }
             });
-        } else {
-            state.addInventoryItem({ id: harinaId, name: "Harina", cost: 1000, stock: 10, batches: [harinaBatch] });
         }
-        state.updateAccounts(prev => AccountingActions.purchaseInventory(prev, 10000, 'banco'));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount: 10000, description: "Compra Inventario: Harina (x10)", details: { itemName: "Harina", quantity: 10, method: "banco", type: "inventory", providerName: "Proveedor Harina S.A." } });
+        checkEq('post-compra inventario');
 
-        log("3. Comprando Activo Fijo (Batidora ₡20,000) pagado con Caja Chica");
-        state.addAssetItem({ id: crypto.randomUUID(), name: "Batidora", value: 20000, quantity: 1 });
-        state.updateAccounts(prev => AccountingActions.purchaseAsset(prev, 20000, 'caja_chica'));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount: 20000, description: "Compra Activo: Batidora (x1)", details: { itemName: "Batidora", quantity: 1, method: "caja_chica", type: "asset" } });
+        // Check FIFO batch was added
+        {
+            const item = useStore.getState().inventory.find(i => i.id === harinaId);
+            const batchPresent = item?.batches?.some(b => b.id === harinaBatchId) ?? false;
+            if (batchPresent) ok('Batch FIFO registrado correctamente');
+            else fail('Batch FIFO NO registrado');
+        }
 
-        log("4. Venta Simple (Servicio / Café ₡3000) a Caja Chica");
-        state.updateAccounts(prev => AccountingActions.registerSale(prev, 3000, 0, false, 'caja_chica'));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'SALE', date: new Date().toISOString(), amount: 3000, description: "Venta: Café (x2)", details: { method: "caja_chica", cart: [{ name: "Café", qty: 2, price: 1500 }] } });
-
-        log("5. Producción (Cocinar 10 Panes consumiendo 2 Harinas)");
-        let costHarinaConsumed = state.consumeInventoryFIFO(harinaId, 2);
-
-        let pan = state.inventory.find(i => i.name === "Pan");
-        const panId = pan ? pan.id : crypto.randomUUID();
-        const unitCostPan = costHarinaConsumed / 10;
-        const panBatch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 10, cost: unitCostPan };
-        if (pan) {
-            const existingBatches = pan.batches && pan.batches.length > 0 ? [...pan.batches] : [{ id: 'legacy-pan', date: new Date(0).toISOString(), cost: pan.cost, stock: pan.stock }];
-            const newStock = pan.stock + 10;
-            const newTotalVal = (pan.cost * pan.stock) + costHarinaConsumed;
-            state.updateInventoryItem(panId, {
-                stock: newStock,
-                cost: newStock > 0 ? newTotalVal / newStock : 0,
-                batches: [...existingBatches, panBatch]
+        // ── 3. Purchase asset (Batidora ₡20,000)
+        step(3, 'Compra Activo Fijo: Batidora ₡20,000 (caja chica)');
+        {
+            const assetId = crypto.randomUUID();
+            useStore.getState().addAssetItem({ id: assetId, name: 'Batidora', value: 20000, quantity: 1 });
+            useStore.getState().updateAccounts(prev => AccountingActions.purchaseAsset(prev, 20000, 'caja_chica'));
+            assetBuyTxId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: assetBuyTxId, type: 'PURCHASE', date: new Date().toISOString(), amount: 20000,
+                description: 'Compra Activo: Batidora (x1)',
+                details: { itemName: 'Batidora', quantity: 1, method: 'caja_chica', type: 'asset' }
             });
-        } else {
-            state.addInventoryItem({ id: panId, name: "Pan", stock: 10, cost: unitCostPan, batches: [panBatch] });
         }
-        state.updateAccounts(prev => AccountingActions.production(prev));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'PRODUCTION', date: new Date().toISOString(), amount: costHarinaConsumed, description: "Cocina: 10x Pan (usando 2x Harina)", cogs: costHarinaConsumed, details: { outputName: "Pan", outputQty: 10, ingredients: [{ item: { id: harinaId, name: "Harina", cost: costHarinaConsumed / 2 }, qty: 2 }] } });
+        checkEq('post-compra activo');
 
-        log("6. Venta Compleja (Vender 5 Panes a ₡500 c/u) a Banco");
-        // Inventario NO se deduce en la venta (Periodic Inventory Model)
-        state.updateAccounts(prev => AccountingActions.registerSale(prev, 2500, 0, false, 'banco'));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'SALE', date: new Date().toISOString(), amount: 2500, description: "Venta: Pan (x5)", cogs: 0, details: { method: "banco", cart: [{ name: "Pan", qty: 5, price: 500 }] } });
-
-        log("7. Registrar Gasto (Luz ₡5000) desde Banco");
-        state.updateAccounts(prev => AccountingActions.payExpense(prev, 5000, 'banco'));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'EXPENSE', date: new Date().toISOString(), amount: 5000, description: "Gasto (Luz)", details: { typeName: "Luz", provName: "CNFL", method: "banco" } });
-
-        log("8. Ingrese Nuevos Activos y Nuevos Inventarios");
-        // Nuevo Activo: Silla 5,000 de Caja Chica
-        state.addAssetItem({ id: crypto.randomUUID(), name: "Sillas Extras", value: 5000, quantity: 4 });
-        state.updateAccounts(prev => AccountingActions.purchaseAsset(prev, 5000, 'caja_chica'));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount: 5000, description: "Compra Activo: Sillas Extras", details: { itemName: "Sillas Extras", quantity: 4, method: "caja_chica", type: "asset" } });
-
-        // Nuevo Inventario: Huevos 3,000 de Banco
-        let huevos = state.inventory.find(i => i.name === "Huevos");
-        const huevosId = huevos ? huevos.id : crypto.randomUUID();
-        const huevosBatch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 30, cost: 100 };
-
-        if (huevos) {
-            const existingBatches = huevos.batches && huevos.batches.length > 0 ? [...huevos.batches] : [{ id: 'legacy-huevos', date: new Date(0).toISOString(), cost: huevos.cost, stock: huevos.stock }];
-            state.updateInventoryItem(huevosId, {
-                stock: huevos.stock + 30,
-                cost: (huevos.cost * huevos.stock + 3000) / (huevos.stock + 30),
-                batches: [...existingBatches, huevosBatch]
+        // ── 4. Sale — service (no inventory deduction)
+        step(4, 'Venta: Café x2 @₡1,500 = ₡3,000 (caja chica)');
+        {
+            useStore.getState().updateAccounts(prev => AccountingActions.registerSale(prev, 3000, 0, false, 'caja_chica'));
+            saleTxId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: saleTxId, type: 'SALE', date: new Date().toISOString(), amount: 3000,
+                description: 'Venta: Café (x2)', cogs: 0,
+                details: { method: 'caja_chica', cart: [{ id: 'cafe', name: 'Café', qty: 2, price: 1500 }] }
             });
-        } else {
-            state.addInventoryItem({ id: huevosId, name: "Huevos", cost: 100, stock: 30, batches: [huevosBatch] });
+        }
+        checkEq('post-venta');
+
+        // ── 5. Expense
+        step(5, 'Gasto: Luz ₡5,000 (banco)');
+        {
+            useStore.getState().updateAccounts(prev => AccountingActions.payExpense(prev, 5000, 'banco'));
+            expenseTxId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: expenseTxId, type: 'EXPENSE', date: new Date().toISOString(), amount: 5000,
+                description: 'Gasto (Luz)', details: { typeName: 'Luz', method: 'banco' }
+            });
+        }
+        checkEq('post-gasto');
+
+        // ── 6. Production (2 Harina → 10 Pan)
+        step(6, 'Producción: 2x Harina → 10x Pan (activo circulante)');
+        {
+            const cogsProd = useStore.getState().consumeInventoryFIFO(harinaId, 2); // 2 * ₡1000 = ₡2000
+            const panBatch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 10, cost: cogsProd / 10 };
+            useStore.getState().addInventoryItem({ id: panId, name: 'Pan', cost: cogsProd / 10, stock: 10, batches: [panBatch] });
+            // production() is a no-op on accounts (asset exchange only)
+            useStore.getState().updateAccounts(prev => AccountingActions.production(prev));
+            useStore.getState().addTransaction({
+                id: crypto.randomUUID(), type: 'PRODUCTION', date: new Date().toISOString(),
+                amount: cogsProd, description: 'Cocina: 10x Pan (2x Harina)', cogs: cogsProd,
+                details: { outputName: 'Pan', outputQty: 10, ingredients: [{ item: { id: harinaId, name: 'Harina', cost: 1000 }, qty: 2 }] }
+            });
+        }
+        checkEq('post-producción');
+
+        // ── 7. Cash adjustment — LOSS (caja chica)
+        step(7, 'Ajuste Caja Chica: faltante de ₡1,000 (pérdida)');
+        {
+            const s = snap();
+            const realVal = s.caja_chica - 1000; // found ₡1000 less
+            const diffCaja = s.caja_chica - realVal; // > 0 → loss
+            useStore.getState().updateAccounts(prev => AccountingActions.auditCash(prev, s.caja_chica, realVal, 'caja_chica'));
+            cashAdjTxId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: cashAdjTxId, type: 'ADJUSTMENT', date: new Date().toISOString(),
+                amount: Math.abs(diffCaja),
+                description: `Ajuste Caja Chica (Dif: -₡${Math.abs(diffCaja)})`,
+                details: { method: 'caja_chica', diffCaja }
+            });
+        }
+        checkEq('post-ajuste-caja-pérdida');
+
+        // ── 8. Cash adjustment — GAIN (banco)
+        step(8, 'Ajuste Bancos: sobrante de ₡500 (ganancia)');
+        {
+            const s = snap();
+            const realVal = s.banco + 500; // found ₡500 more
+            const diffBanco = s.banco - realVal; // < 0 → gain
+            useStore.getState().updateAccounts(prev => AccountingActions.auditCash(prev, s.banco, realVal, 'banco'));
+            useStore.getState().addTransaction({
+                id: crypto.randomUUID(), type: 'ADJUSTMENT', date: new Date().toISOString(),
+                amount: Math.abs(diffBanco),
+                description: `Ajuste Bancos (Dif: +₡${Math.abs(diffBanco)})`,
+                details: { method: 'banco', diffBanco }
+            });
+        }
+        checkEq('post-ajuste-banco-ganancia');
+
+        // ── 9. Physical inventory count adjustment
+        step(9, 'Toma Física Inventario: 3x Pan faltante');
+        {
+            const lostValue = useStore.getState().consumeInventoryFIFO(panId, 3);
+            useStore.getState().updateAccounts(prev => AccountingActions.adjustInventoryValues(prev, lostValue));
+            invAdjTxId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: invAdjTxId, type: 'ADJUSTMENT', date: new Date().toISOString(),
+                amount: lostValue, description: 'Ajuste Físico Inventario (Merma)',
+                cogs: lostValue,
+                details: { itemsAdjusted: [{ name: 'Pan', qty: 3 }] }
+            });
+        }
+        checkEq('post-toma-física-inventario');
+
+        // ── 10. Asset count adjustment (loss)
+        step(10, 'Toma Activos Físicos: Batidora vale ₡2,000 menos');
+        {
+            const diff = 2000; // positive = loss
+            useStore.getState().updateAccounts(prev => ({
+                ...prev,
+                activo_fijo: (prev.activo_fijo || 0) - diff,
+                patrimonio:  (prev.patrimonio  || 0) - diff,
+            }));
+            assetAdjTxId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: assetAdjTxId, type: 'ADJUSTMENT', date: new Date().toISOString(),
+                amount: diff, description: 'Ajuste de Activos (Dif: -₡2000)',
+                cogs: diff,
+                details: { diff, counts: {}, itemDetails: [] }
+            });
+        }
+        checkEq('post-toma-activos');
+
+        // ════════════════════════════════════════════════════════════════════
+        log('', 'info');
+        log('▶ FASE 2: Reversiones (Anulaciones)', 'step');
+        log('', 'info');
+
+        // ── 11. Void SALE
+        step(11, 'Anular Venta (₡3,000)');
+        {
+            const before = snap();
+            useStore.getState().revertTransaction(saleTxId);
+            const tx = useStore.getState().transactions.find(t => t.id === saleTxId);
+            if (tx?.status === 'VOIDED') ok('Venta marcada VOIDED');
+            else fail('Venta NO fue anulada');
+            // caja_chica should be before.caja_chica - 3000, patrimonio - 3000
+            const expected = { ...before, caja_chica: before.caja_chica - 3000, patrimonio: before.patrimonio - 3000, total: before.total - 3000 };
+            checkRevert('SALE', expected);
         }
 
-        state.updateAccounts(prev => AccountingActions.purchaseInventory(prev, 3000, 'banco'));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount: 3000, description: "Compra Inventario: Huevos (x30)", details: { itemName: "Huevos", quantity: 30, method: "banco", type: "inventory", providerName: "Granja Avícola" } });
-
-        log("9. Venta con Precio Modificado (1 Pan a ₡400) a Caja Chica");
-        state.updateAccounts(prev => AccountingActions.registerSale(prev, 400, 0, false, 'caja_chica'));
-        state.addTransaction({
-            id: crypto.randomUUID(),
-            type: 'SALE',
-            date: new Date().toISOString(),
-            amount: 400,
-            description: "Venta: Pan (Precio Modificado)",
-            cogs: 0,
-            details: {
-                method: 'caja_chica',
-                cart: [{
-                    id: panId,
-                    name: "Pan",
-                    qty: 1,
-                    price: 400
-                }]
-            }
-        });
-
-        log("10. Ajuste de Inventario Físico (Costo de Venta por Toma Física)");
-        let totalPerdida = 0;
-        // Al final de la semana, se cuentan los faltantes y se envían a Costos (Mermas/Consumo)
-        totalPerdida += state.consumeInventoryFIFO(harinaId, 1);
-        totalPerdida += state.consumeInventoryFIFO(panId, 6); // Ajustamos los 6 panes que se vendieron durante la simulación!
-        totalPerdida += state.consumeInventoryFIFO(huevosId, 2);
-
-        state.updateAccounts(prev => AccountingActions.adjustInventoryValues(prev, totalPerdida));
-        state.addTransaction({ id: crypto.randomUUID(), type: 'ADJUSTMENT', date: new Date().toISOString(), amount: totalPerdida, description: "Ajuste Físico (Mermas)", cogs: totalPerdida });
-
-        log("--- Simulación Completada. Iniciando Auditoría ---");
-
-        // Grab final state
-        const finalState = useStore.getState();
-        const baseAcc = finalState.accounts;
-        const ledger = finalState.getLedgerAccounts();
-
-        const totalAssets = baseAcc.banco + baseAcc.caja_chica + baseAcc.inventario + baseAcc.activo_fijo;
-        const netIncome = (ledger.ventas || 0) - (ledger.costos || 0) - (ledger.gastos || 0);
-        // Accounting Equation: Assets = Liabilities + Equity + retained earnings (Net Income)
-        const liabilitiesEquity = baseAcc.patrimonio + netIncome;
-
-        log(`Resultados Cuenta: Banco(₡${baseAcc.banco}), Caja(₡${baseAcc.caja_chica}), Inv(₡${baseAcc.inventario}), Activo(₡${baseAcc.activo_fijo})`);
-        log(`Ingresos: Ventas(₡${ledger.ventas || 0}) | Egresos: Costos(₡${ledger.costos || 0}), Gastos(₡${ledger.gastos || 0})`);
-
-        console.log("=== PRE-VOID BALANCE CHECK ===");
-        console.log("Assets:", { banco: baseAcc.banco, caja_chica: baseAcc.caja_chica, inventario: baseAcc.inventario, activo_fijo: baseAcc.activo_fijo, total: totalAssets });
-        console.log("Liabilities+Equity:", { patrimonio: baseAcc.patrimonio, ventas: ledger.ventas, costos: ledger.costos, gastos: ledger.gastos, netIncome: netIncome, total: liabilitiesEquity });
-        console.log("Difference:", totalAssets - liabilitiesEquity);
-
-        let passed = true;
-        // Calculate diff with small epsilon for JS float physics
-        if (Math.abs(totalAssets - liabilitiesEquity) > 0.01) {
-            log(`❌ ERROR CONTABLE: Activos (₡${totalAssets}) != Pasivo+Patrimonio (₡${liabilitiesEquity})`);
-            passed = false;
-        } else {
-            log(`✅ ECUACIÓN CONTABLE PERFECTA: Activos (₡${totalAssets}) == Pasivo+Patrimonio (₡${liabilitiesEquity})`);
+        // ── 12. Void EXPENSE
+        step(12, 'Anular Gasto (₡5,000)');
+        {
+            const before = snap();
+            useStore.getState().revertTransaction(expenseTxId);
+            const tx = useStore.getState().transactions.find(t => t.id === expenseTxId);
+            if (tx?.status === 'VOIDED') ok('Gasto marcado VOIDED');
+            else fail('Gasto NO fue anulado');
+            const expected = { ...before, banco: before.banco + 5000, patrimonio: before.patrimonio + 5000, total: before.total + 5000 };
+            checkRevert('EXPENSE', expected);
         }
 
-        log("11. Prueba de Anulación de Transacción (Reversión)");
-        // Find the last sale and revert it
-        const lastSale = finalState.transactions.find(t => t.type === 'SALE');
-        if (lastSale) {
-            finalState.revertTransaction(lastSale.id);
-            const revertedState = useStore.getState();
-            const voidedTx = revertedState.transactions.find(t => t.id === lastSale.id);
-            // The contra transaction should be the first one added after the void,
-            // assuming no other transactions happened immediately after the void.
-            // A more robust check might involve filtering by date or a specific property.
-            const contraTx = revertedState.transactions.find(t => t.voidingTxId === lastSale.id);
+        // ── 13. Void PURCHASE inventory — test the batchId fix
+        step(13, 'Anular Compra Inventario (Harina x10) — verifica batch FIFO');
+        {
+            const before = snap();
+            const batchesBefore = useStore.getState().inventory.find(i => i.id === harinaId)?.batches ?? [];
+            useStore.getState().revertTransaction(purchaseTxId);
+            const tx = useStore.getState().transactions.find(t => t.id === purchaseTxId);
+            if (tx?.status === 'VOIDED') ok('Compra Inventario marcada VOIDED');
+            else fail('Compra Inventario NO fue anulada');
 
-            if (voidedTx?.status === 'VOIDED' && contraTx) { // Check if contraTx exists
-                log("✅ Transacción Anulada y Contra-Asiento Generado.");
+            // Check batch was REMOVED
+            const batchesAfter = useStore.getState().inventory.find(i => i.id === harinaId)?.batches ?? [];
+            const batchGone = !batchesAfter.some(b => b.id === harinaBatchId);
+            if (batchGone) ok('Batch FIFO correcto eliminado del inventario');
+            else fail('Batch FIFO NO fue eliminado — FIFO pool está corrupto');
 
-                // Final Ledger Check after Void
-                const postVoidLedger = revertedState.getLedgerAccounts();
-                const postVoidAssets = revertedState.accounts.banco + revertedState.accounts.caja_chica + revertedState.accounts.inventario + revertedState.accounts.activo_fijo;
-                const postVoidNet = (postVoidLedger.ventas || 0) - (postVoidLedger.costos || 0) - (postVoidLedger.gastos || 0);
-
-                console.log("=== POST-VOID BALANCE CHECK ===");
-                console.log("Assets:", { banco: revertedState.accounts.banco, caja_chica: revertedState.accounts.caja_chica, inventario: revertedState.accounts.inventario, activo_fijo: revertedState.accounts.activo_fijo, total: postVoidAssets });
-                console.log("Liabilities+Equity:", { patrimonio: revertedState.accounts.patrimonio, ventas: postVoidLedger.ventas, costos: postVoidLedger.costos, gastos: postVoidLedger.gastos, netIncome: postVoidNet, total: revertedState.accounts.patrimonio + postVoidNet });
-                console.log("Difference:", postVoidAssets - (revertedState.accounts.patrimonio + postVoidNet));
-
-                if (Math.abs(postVoidAssets - (revertedState.accounts.patrimonio + postVoidNet)) < 0.01) {
-                    log("✅ Ecuación Contable se mantiene post-anulación.");
-                } else {
-                    log(`❌ Descuadre post-anulación. Activos: ${postVoidAssets}, Pasivo+Pat: ${revertedState.accounts.patrimonio + postVoidNet}`);
-                    passed = false;
-                }
-            } else {
-                log("❌ Error en la Reversión de la Transacción.");
-                passed = false;
-            }
-        } else {
-            log("⚠️ No se encontró una transacción de venta para anular.");
+            const expected = { ...before, banco: before.banco + 10000, inventario: before.inventario - 10000, total: before.total };
+            checkRevert('PURCHASE-inventory', expected);
         }
 
-        setIsSuccess(passed);
-
-        if (passed) {
-            log("🎉 Auditoría superada con éxito. Todos los sistemas operativos.");
-        } else {
-            log("🔥 Falló la auditoría del sistema.");
+        // ── 14. Void cash adjustment (loss) — test numeric diff fix
+        step(14, 'Anular Ajuste Caja Chica (pérdida ₡1,000) — verifica diff numérico');
+        {
+            const before = snap();
+            useStore.getState().revertTransaction(cashAdjTxId);
+            const tx = useStore.getState().transactions.find(t => t.id === cashAdjTxId);
+            if (tx?.status === 'VOIDED') ok('Ajuste Caja Chica marcado VOIDED');
+            else fail('Ajuste Caja Chica NO fue anulado');
+            const expected = { ...before, caja_chica: before.caja_chica + 1000, patrimonio: before.patrimonio + 1000, total: before.total + 1000 };
+            checkRevert('ADJUSTMENT-cash-loss', expected);
         }
+
+        // ── 15. Void inventory count adjustment
+        step(15, 'Anular Toma Física Inventario (merma Pan)');
+        {
+            const invBefore = useStore.getState().inventory.find(i => i.id === panId);
+            const lostVal = useStore.getState().transactions.find(t => t.id === invAdjTxId)?.cogs ?? 0;
+            const before = snap();
+            useStore.getState().revertTransaction(invAdjTxId);
+            const tx = useStore.getState().transactions.find(t => t.id === invAdjTxId);
+            if (tx?.status === 'VOIDED') ok('Ajuste Inventario marcado VOIDED');
+            else fail('Ajuste Inventario NO fue anulado');
+            const expected = { ...before, inventario: before.inventario + lostVal, patrimonio: before.patrimonio + lostVal, total: before.total + lostVal };
+            checkRevert('ADJUSTMENT-inventory', expected);
+        }
+
+        // ── 16. Void asset count adjustment
+        step(16, 'Anular Toma Activos Físicos (pérdida ₡2,000)');
+        {
+            const before = snap();
+            useStore.getState().revertTransaction(assetAdjTxId);
+            const tx = useStore.getState().transactions.find(t => t.id === assetAdjTxId);
+            if (tx?.status === 'VOIDED') ok('Ajuste Activos marcado VOIDED');
+            else fail('Ajuste Activos NO fue anulado');
+            const expected = { ...before, activo_fijo: before.activo_fijo + 2000, patrimonio: before.patrimonio + 2000, total: before.total + 2000 };
+            checkRevert('ADJUSTMENT-assets', expected);
+        }
+
+        // ── 17. Void PURCHASE asset
+        step(17, 'Anular Compra Activo (Batidora ₡20,000)');
+        {
+            const before = snap();
+            useStore.getState().revertTransaction(assetBuyTxId);
+            const tx = useStore.getState().transactions.find(t => t.id === assetBuyTxId);
+            if (tx?.status === 'VOIDED') ok('Compra Activo marcada VOIDED');
+            else fail('Compra Activo NO fue anulada');
+            const expected = { ...before, caja_chica: before.caja_chica + 20000, activo_fijo: before.activo_fijo - 20000, total: before.total };
+            checkRevert('PURCHASE-asset', expected);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        log('', 'info');
+        const allPassed = failed === 0;
+        log(`══ RESULTADO: ${passed} pruebas PASADAS, ${failed} FALLIDAS ══`, allPassed ? 'ok' : 'fail');
+
+        setLogs(entries);
+        setSummary({ passed, failed });
     };
+
+    const allPassed = summary ? summary.failed === 0 : null;
 
     return (
         <Card className={cn(
-            "max-w-xl mx-auto space-y-4 border-2 bg-emerald-50",
-            isSuccess === true ? "border-green-500 bg-green-50 text-green-900" :
-                isSuccess === false ? "border-red-500 bg-red-50" :
-                    "border-emerald-200"
+            "max-w-2xl mx-auto space-y-4 border-2",
+            allPassed === true  ? "border-green-500 bg-green-50"  :
+            allPassed === false ? "border-red-500   bg-red-50"    :
+                                  "border-emerald-200 bg-emerald-50"
         )}>
             <div>
-                <h3 className="font-bold text-lg mb-2">Simulación y Auditoría del Sistema</h3>
-                <p className="text-sm opacity-80 mb-4">
-                    Esta función reemplazará los datos actuales con una simulación completa (Compras, Ventas, Gastos, Producción) para verificar la integridad contable del sistema.
+                <h3 className="font-bold text-lg mb-1">Simulación y Auditoría del Sistema</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                    Resetea a estado limpio y ejecuta 17 pruebas contables — cada transacción y su anulación — verificando
+                    <code className="mx-1 bg-gray-100 rounded px-1">Activos = Patrimonio</code>
+                    después de cada operación.
                 </p>
                 <Button onClick={runAudit} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
                     Ejecutar Simulación Contable
                 </Button>
             </div>
+
+            {summary && (
+                <div className={cn(
+                    "text-center font-bold text-sm rounded-lg py-2",
+                    allPassed ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                )}>
+                    {allPassed
+                        ? `🎉 Todo correcto — ${summary.passed} pruebas pasadas`
+                        : `🔥 ${summary.failed} prueba(s) fallida(s) de ${summary.passed + summary.failed}`}
+                </div>
+            )}
+
             {logs.length > 0 && (
-                <div className="bg-black text-emerald-400 p-4 rounded-xl font-mono text-xs space-y-1 h-64 overflow-y-auto">
+                <div className="bg-gray-950 text-gray-200 p-4 rounded-xl font-mono text-xs space-y-0.5 max-h-96 overflow-y-auto">
                     {logs.map((l, i) => (
-                        <div key={i} className={cn(l.includes('❌') ? 'text-red-400 font-bold' : l.includes('✅') || l.includes('🎉') ? 'text-green-400 font-bold' : '')}>
-                            {l}
+                        <div key={i} className={cn(
+                            'leading-5',
+                            l.kind === 'ok'   ? 'text-green-400' :
+                            l.kind === 'fail' ? 'text-red-400 font-bold' :
+                            l.kind === 'step' ? 'text-yellow-300 mt-1' :
+                                                'text-gray-400'
+                        )}>
+                            {l.msg}
                         </div>
                     ))}
                 </div>
