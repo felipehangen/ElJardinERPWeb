@@ -12,7 +12,7 @@ const getYTDStartDate = () => {
 };
 
 export const Reports = () => {
-    const { accounts, inventory, assets, getLedgerAccounts } = useStore();
+    const { accounts, inventory, assets, getLedgerAccounts, transactions } = useStore();
     const ledger = getLedgerAccounts();
     const [tab, setTab] = useState<'financial' | 'inventory' | 'assets' | 'cash'>('financial');
     const [searchInv, setSearchInv] = useState('');
@@ -22,11 +22,23 @@ export const Reports = () => {
 
     if (!accounts) return <div>Cargando cuentas...</div>;
 
+    // Initial capital = amount from the very first INITIALIZATION transaction (capital contribution)
+    // accounts.patrimonio is CUMULATIVE equity (initial capital + all retained earnings)
+    const initialCapital = useMemo(() => {
+        const initTx = [...transactions]
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .find(t => t.type === 'INITIALIZATION');
+        return initTx?.amount ?? accounts.patrimonio;
+    }, [transactions, accounts.patrimonio]);
+
+    // Retained earnings = everything that was earned/lost on top of initial capital
+    const resultadosAcumulados = accounts.patrimonio - initialCapital;
+
     // Derived Financial Data (Global using Ledger)
     const totalActivos = ledger.caja_chica + ledger.banco + ledger.inventario + ledger.activo_fijo;
-    const utilidadBrutaGlobal = (ledger.ventas || 0) - (ledger.costos || 0);
-    const utilidadNetaGlobal = utilidadBrutaGlobal - (ledger.gastos || 0) + (ledger.otrosIngresos || 0) - (ledger.otrosGastos || 0);
-    const totalPatrimonio = ledger.patrimonio + utilidadNetaGlobal;
+    // accounts.patrimonio IS the true total equity — it is updated by every transaction
+    // so it always equals total assets. Do NOT add utilidadNeta on top (that would double-count).
+    const totalPatrimonio = accounts.patrimonio;
 
     const financialData = useMemo(() => {
         const start = finStartDate ? new Date(finStartDate + 'T00:00:00') : null;
@@ -57,8 +69,6 @@ export const Reports = () => {
         };
     }, [getLedgerAccounts, finStartDate, finEndDate]);
 
-    // Use global utility for Balance Sheet equity calc (retained earnings are cumulative)
-    const utilidadNeta = utilidadNetaGlobal;
     // Filter Inventory
     const filteredInventory = useMemo(() => {
         const filtered = inventory.filter(i => i.name.toLowerCase().includes(searchInv.toLowerCase()));
@@ -98,8 +108,8 @@ export const Reports = () => {
             csvContent += `Total Activos,${totalActivos}\n`;
             csvContent += `Cuentas por Pagar,0\n`;
             csvContent += `Total Pasivos,0\n`;
-            csvContent += `Capital Inicial,${accounts.patrimonio}\n`;
-            csvContent += `Utilidad Acumulada,${utilidadNeta}\n`;
+            csvContent += `Capital Inicial,${initialCapital}\n`;
+            csvContent += `Resultados Acumulados,${resultadosAcumulados}\n`;
             csvContent += `Total Patrimonio,${totalPatrimonio}\n`;
         } else if (tab === 'inventory') {
             filename = "Reporte_Inventario.csv";
@@ -265,8 +275,8 @@ export const Reports = () => {
 
                             <div className="bg-gray-50 p-3 rounded-xl space-y-2 shadow-sm border border-gray-100">
                                 <div className="font-bold text-emerald-900 uppercase text-xs mb-1">Patrimonio (Lo que vale)</div>
-                                <Row label="Capital Inicial" value={accounts.patrimonio} />
-                                <Row label="Utilidad Acumulada" value={utilidadNeta} color={utilidadNeta >= 0 ? 'text-green-600' : 'text-red-500'} />
+                                <Row label="Capital Inicial" value={initialCapital} />
+                                <Row label="Resultados Acumulados" value={resultadosAcumulados} color={resultadosAcumulados >= 0 ? 'text-green-600' : 'text-red-500'} />
                                 <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-black text-gray-800">
                                     <span>Total Patrimonio</span>
                                     <span>₡{fmt(totalPatrimonio)}</span>

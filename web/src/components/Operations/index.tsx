@@ -146,6 +146,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         const prevLedger = { ...accounts, ...getLedgerAccounts() }; // Capture snapshot
         let newAccounts = accounts;
         let purchaseBatchId: string | undefined; // Captured so we can store it in the transaction
+        let purchasedAssetId: string | undefined; // Captured when buying an asset
         if (tab === 'inventory') {
             newAccounts = AccountingActions.purchaseInventory(accounts, amount, form.method as any);
 
@@ -192,8 +193,9 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
                 // OR create a new one.
                 // The currrent UI for Asset is just "Description" (Text Input).
                 // So we create a NEW Asset Item.
+                purchasedAssetId = crypto.randomUUID();
                 addAssetItem({
-                    id: crypto.randomUUID(),
+                    id: purchasedAssetId,
                     name: form.itemName,
                     value: amount, // Total Value
                     quantity: quantity
@@ -207,7 +209,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         addTransaction({
             id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount,
             description: `Compra ${tab === 'inventory' ? 'Inventario' : 'Activo'}: ${form.itemName} (x${formatQty(quantity)})`,
-            details: { itemId: form.itemId, itemName: form.itemName, batchId: purchaseBatchId, quantity, method: form.method, type: tab, providerName: targetProvider }
+            details: { itemId: form.itemId, itemName: form.itemName, batchId: purchaseBatchId, assetId: purchasedAssetId, quantity, method: form.method, type: tab, providerName: targetProvider }
         });
 
         const freshState = useStore.getState();

@@ -125,20 +125,28 @@ export const useStore = create<AppState & StoreActions>()(
 
                 // Recalculate historically exactly how Reports does it, but globally
                 let ventas = validTxs.filter(t => t.type === 'SALE').reduce((acc, t) => acc + t.amount, 0);
-                const otrosIngresos = validTxs
-                    .filter(t => t.type === 'ADJUSTMENT' && !t.voidingTxId && !t.description.toLowerCase().includes('inventario') && !t.description.toLowerCase().includes('físico') && !t.description.toLowerCase().includes('activos'))
-                    .reduce((acc, t) => {
-                        if (t.description.includes('+')) return acc + t.amount;
-                        return acc;
-                    }, 0);
+                // Cash adjustments: use stored numeric diff to classify (reliable).
+                // diff > 0 → system had more than reality → cash LOSS → otrosGastos
+                // diff < 0 → system had less than reality → cash GAIN → otrosIngresos
+                // Legacy transactions without stored diff fall back to description parsing.
+                const cashAdjTxs = validTxs.filter(t =>
+                    t.type === 'ADJUSTMENT' && !t.voidingTxId &&
+                    !t.description.toLowerCase().includes('inventario') &&
+                    !t.description.toLowerCase().includes('físico') &&
+                    !t.description.toLowerCase().includes('activos')
+                );
+                const otrosIngresos = cashAdjTxs.reduce((acc, t) => {
+                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
+                    const isGain = diff !== undefined ? diff < 0 : t.description.includes('+');
+                    return isGain ? acc + t.amount : acc;
+                }, 0);
 
                 let gastos = validTxs.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
-                const otrosGastos = validTxs
-                    .filter(t => t.type === 'ADJUSTMENT' && !t.voidingTxId && !t.description.toLowerCase().includes('inventario') && !t.description.toLowerCase().includes('físico') && !t.description.toLowerCase().includes('activos'))
-                    .reduce((acc, t) => {
-                        if (t.description.includes('+')) return acc; // Gain
-                        return acc + t.amount;
-                    }, 0);
+                const otrosGastos = cashAdjTxs.reduce((acc, t) => {
+                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
+                    const isLoss = diff !== undefined ? diff > 0 : !t.description.includes('+');
+                    return isLoss ? acc + t.amount : acc;
+                }, 0);
 
                 const salesCogs = validTxs.filter(t => t.type === 'SALE').reduce((acc, t) => acc + (t.cogs || 0), 0);
                 const costsFromAdj = validTxs
@@ -307,6 +315,7 @@ export const useStore = create<AppState & StoreActions>()(
 
                 // Helper to re-inject stock into FIFO
                 let updatedInventory = [...state.inventory];
+                let assetIdToRemove: string | undefined; // Populated when voiding a PURCHASE/asset
                 const reverseInventoryFIFO = (itemId: string, qty: number, exactCostVal: number) => {
                     const idx = updatedInventory.findIndex(i => i.id === itemId);
                     if (idx === -1) return;
@@ -398,6 +407,10 @@ export const useStore = create<AppState & StoreActions>()(
                             }
                         } else if (tx.details?.type === 'asset') {
                             newAccounts.activo_fijo -= tx.amount;
+                            // Remove the asset from the catalog if we recorded its ID at purchase time
+                            if (tx.details?.assetId) {
+                                assetIdToRemove = tx.details.assetId;
+                            }
                         }
                         break;
                     case 'EXPENSE':
@@ -495,6 +508,9 @@ export const useStore = create<AppState & StoreActions>()(
                 set(state => ({
                     accounts: { ...newAccounts, _isLedger: true },
                     inventory: updatedInventory,
+                    assets: assetIdToRemove
+                        ? state.assets.filter(a => a.id !== assetIdToRemove)
+                        : state.assets,
                     transactions: [contraTx, ...state.transactions.map(t => t.id === txId ? voidedTx : t)]
                 }));
             },
