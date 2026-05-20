@@ -45,6 +45,7 @@ export const Settings = () => {
                 const data = JSON.parse(event.target?.result as string);
                 if (window.confirm("¿Sobrescribir datos actuales con este respaldo?")) {
                     importState(data);
+                    reconcile(); // derive inventario, activo_fijo, patrimonio from restored physical arrays
                     alert("Datos restaurados.");
                 }
             } catch (err) {
