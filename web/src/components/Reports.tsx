@@ -22,13 +22,13 @@ export const Reports = () => {
 
     if (!accounts) return <div>Cargando cuentas...</div>;
 
-    // Initial capital = amount from the very first INITIALIZATION transaction (capital contribution)
-    // accounts.patrimonio is CUMULATIVE equity (initial capital + all retained earnings)
+    // Initial capital = SUM of all INITIALIZATION transactions (covers multiple capital contributions)
+    // accounts.patrimonio is CUMULATIVE equity (all capital + all retained earnings)
     const initialCapital = useMemo(() => {
-        const initTx = [...transactions]
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .find(t => t.type === 'INITIALIZATION');
-        return initTx?.amount ?? accounts.patrimonio;
+        const total = transactions
+            .filter(t => t.type === 'INITIALIZATION' && t.status !== 'VOIDED')
+            .reduce((sum, t) => sum + t.amount, 0);
+        return total > 0 ? total : accounts.patrimonio;
     }, [transactions, accounts.patrimonio]);
 
     // Retained earnings = everything that was earned/lost on top of initial capital

@@ -884,7 +884,10 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
             cost: exactTotalCost / outputQty
         };
 
-        const existing = inventory.find(i => normalizeName(i.name) === normalizeName(output.name));
+        // Prefer ID-based lookup (set when user selects an existing item); fall back to name for new items
+        const existing = inventory.find(i =>
+            output.id ? i.id === output.id : normalizeName(i.name) === normalizeName(output.name)
+        );
         let outputId: string;
 
         if (existing) {

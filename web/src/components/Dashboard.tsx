@@ -18,7 +18,7 @@ export const Dashboard = ({ onOpenModal }: DashboardProps) => {
     const monthlySales = transactions
         .filter(t => {
             const d = new Date(t.date);
-            return t.type === 'SALE' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            return t.type === 'SALE' && t.status !== 'VOIDED' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
         })
         .reduce((acc, t) => acc + t.amount, 0);
 

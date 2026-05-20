@@ -125,35 +125,55 @@ export const useStore = create<AppState & StoreActions>()(
 
                 // Recalculate historically exactly how Reports does it, but globally
                 let ventas = validTxs.filter(t => t.type === 'SALE').reduce((acc, t) => acc + t.amount, 0);
-                // Cash adjustments: use stored numeric diff to classify (reliable).
-                // diff > 0 → system had more than reality → cash LOSS → otrosGastos
-                // diff < 0 → system had less than reality → cash GAIN → otrosIngresos
-                // Legacy transactions without stored diff fall back to description parsing.
-                const cashAdjTxs = validTxs.filter(t =>
-                    t.type === 'ADJUSTMENT' && !t.voidingTxId &&
-                    !t.description.toLowerCase().includes('inventario') &&
-                    !t.description.toLowerCase().includes('físico') &&
-                    !t.description.toLowerCase().includes('activos')
+                let gastos = validTxs.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
+
+                // Classify ADJUSTMENT sub-types using structured details fields (not fragile description strings):
+                // • details.itemsAdjusted !== undefined  → inventory physical count → COGS
+                // • details.diff !== undefined (no itemsAdjusted) → asset count adjustment → otrosGastos/otrosIngresos
+                // • details.method is 'caja_chica'/'banco' → cash audit → otrosGastos/otrosIngresos
+                const adjTxs = validTxs.filter(t => t.type === 'ADJUSTMENT' && !t.voidingTxId);
+
+                // Inventory physical counts → cost of goods sold (periodic model)
+                const salesCogs = validTxs.filter(t => t.type === 'SALE').reduce((acc, t) => acc + (t.cogs || 0), 0);
+                const inventoryCountCogs = adjTxs
+                    .filter(t => t.details?.itemsAdjusted !== undefined)
+                    .reduce((acc, t) => acc + (t.cogs !== undefined ? t.cogs : t.amount), 0);
+                const totalCostos = salesCogs + inventoryCountCogs;
+
+                // Cash adjustments → other income / other expense
+                // diff > 0: system had MORE than real → cash LOSS → otrosGastos
+                // diff < 0: system had LESS than real → cash GAIN → otrosIngresos
+                const cashAdjTxs = adjTxs.filter(t =>
+                    t.details?.method === 'caja_chica' || t.details?.method === 'banco' ||
+                    t.details?.account === 'caja_chica' || t.details?.account === 'banco'
                 );
-                const otrosIngresos = cashAdjTxs.reduce((acc, t) => {
+                const cashOtrosIngresos = cashAdjTxs.reduce((acc, t) => {
                     const diff = t.details?.diffCaja ?? t.details?.diffBanco;
                     const isGain = diff !== undefined ? diff < 0 : t.description.includes('+');
                     return isGain ? acc + t.amount : acc;
                 }, 0);
-
-                let gastos = validTxs.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
-                const otrosGastos = cashAdjTxs.reduce((acc, t) => {
+                const cashOtrosGastos = cashAdjTxs.reduce((acc, t) => {
                     const diff = t.details?.diffCaja ?? t.details?.diffBanco;
                     const isLoss = diff !== undefined ? diff > 0 : !t.description.includes('+');
                     return isLoss ? acc + t.amount : acc;
                 }, 0);
 
-                const salesCogs = validTxs.filter(t => t.type === 'SALE').reduce((acc, t) => acc + (t.cogs || 0), 0);
-                const costsFromAdj = validTxs
-                    .filter(t => t.type === 'ADJUSTMENT' && !t.voidingTxId && (t.description.toLowerCase().includes('inventario') || t.description.toLowerCase().includes('físico') || t.description.toLowerCase().includes('activos')))
-                    .reduce((acc, t) => acc + (t.cogs !== undefined ? t.cogs : t.amount), 0);
+                // Asset count adjustments → other income / other expense (NOT cost of sales)
+                // tx.cogs = diff where diff > 0 = loss (system > real), diff < 0 = gain
+                const assetAdjTxs = adjTxs.filter(t =>
+                    t.details?.diff !== undefined && t.details?.itemsAdjusted === undefined
+                );
+                const assetOtrosGastos = assetAdjTxs.reduce((acc, t) => {
+                    const diff = t.cogs ?? 0;
+                    return diff > 0 ? acc + t.amount : acc;
+                }, 0);
+                const assetOtrosIngresos = assetAdjTxs.reduce((acc, t) => {
+                    const diff = t.cogs ?? 0;
+                    return diff < 0 ? acc + t.amount : acc;
+                }, 0);
 
-                const totalCostos = salesCogs + costsFromAdj;
+                const otrosIngresos = cashOtrosIngresos + assetOtrosIngresos;
+                const otrosGastos = cashOtrosGastos + assetOtrosGastos;
 
                 return {
                     ...baseAccounts,
@@ -315,7 +335,8 @@ export const useStore = create<AppState & StoreActions>()(
 
                 // Helper to re-inject stock into FIFO
                 let updatedInventory = [...state.inventory];
-                let assetIdToRemove: string | undefined; // Populated when voiding a PURCHASE/asset
+                let assetIdToRemove: string | undefined;       // Populated when voiding a PURCHASE/asset
+                let assetItemsToRestore: any[] | undefined;    // Populated when voiding an asset count adjustment
                 const reverseInventoryFIFO = (itemId: string, qty: number, exactCostVal: number) => {
                     const idx = updatedInventory.findIndex(i => i.id === itemId);
                     if (idx === -1) return;
@@ -475,14 +496,22 @@ export const useStore = create<AppState & StoreActions>()(
                                 newAccounts.patrimonio = (newAccounts.patrimonio || 0) + lostValue;
                             }
                         }
-                        if (tx.description?.toLowerCase().includes('activo') && tx.details?.diff !== undefined) {
-                            // Reversing an asset count adjustment.
+                        if (tx.details?.diff !== undefined && tx.details?.itemsAdjusted === undefined) {
+                            // Reversing an asset count adjustment (identified by structured details, not description string).
                             // tx.cogs = diff where diff > 0 = LOSS, diff < 0 = GAIN.
-                            // Original reduced activo_fijo and patrimonio by diff; reversal adds it back.
+                            // Original: activo_fijo -= diff, patrimonio -= diff. Reversal adds it back.
                             const assetDiff = tx.cogs ?? 0;
                             if (assetDiff !== 0) {
                                 newAccounts.activo_fijo = (newAccounts.activo_fijo || 0) + assetDiff;
                                 newAccounts.patrimonio = (newAccounts.patrimonio || 0) + assetDiff;
+                            }
+                            // Restore individual asset catalog items to their pre-adjustment system values
+                            if (tx.details?.itemDetails?.length > 0) {
+                                assetItemsToRestore = tx.details.itemDetails.map((d: any) => ({
+                                    id: d.id,
+                                    value: d.sysVal,
+                                    // Quantity is not stored in itemDetails; preserve current quantity
+                                }));
                             }
                         }
                         break;
@@ -505,14 +534,25 @@ export const useStore = create<AppState & StoreActions>()(
 
                 voidedTx.voidingTxId = contraId;
 
-                set(state => ({
-                    accounts: { ...newAccounts, _isLedger: true },
-                    inventory: updatedInventory,
-                    assets: assetIdToRemove
-                        ? state.assets.filter(a => a.id !== assetIdToRemove)
-                        : state.assets,
-                    transactions: [contraTx, ...state.transactions.map(t => t.id === txId ? voidedTx : t)]
-                }));
+                set(state => {
+                    let updatedAssets = state.assets;
+                    if (assetIdToRemove) {
+                        // Voiding a PURCHASE/asset: remove the asset from the catalog
+                        updatedAssets = updatedAssets.filter(a => a.id !== assetIdToRemove);
+                    } else if (assetItemsToRestore) {
+                        // Voiding an asset count: restore each asset to its pre-adjustment system value
+                        const restoreMap = new Map(assetItemsToRestore.map((r: any) => [r.id, r.value]));
+                        updatedAssets = updatedAssets.map(a =>
+                            restoreMap.has(a.id) ? { ...a, value: restoreMap.get(a.id) } : a
+                        );
+                    }
+                    return {
+                        accounts: { ...newAccounts, _isLedger: true },
+                        inventory: updatedInventory,
+                        assets: updatedAssets,
+                        transactions: [contraTx, ...state.transactions.map(t => t.id === txId ? voidedTx : t)]
+                    };
+                });
             },
 
             importState: (newState) => set(() => newState),
