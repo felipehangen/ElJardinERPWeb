@@ -40,7 +40,7 @@ export const backupManager = {
 
             fs.writeFileSync(filepath, JSON.stringify(payload, null, 2), 'utf-8');
 
-            // Enforce 10 day limit
+            // Enforce 15 backup limit
             const files = fs.readdirSync(backupDir)
                 .filter((f: string) => f.endsWith('.json'))
                 .map((f: string) => ({
@@ -147,7 +147,7 @@ export const backupManager = {
             tx.onerror = reject;
         });
 
-        // Enforce 10 day limit
+        // Enforce 15 backup limit
         await new Promise((resolve) => {
             const tx = db.transaction('backups', 'readwrite');
             const store = tx.objectStore('backups');

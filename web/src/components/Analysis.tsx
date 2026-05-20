@@ -192,19 +192,19 @@ export const Analysis = () => {
                 asGasto += t.amount;
                 isRelevant = true;
             } else if (t.type === 'ADJUSTMENT' && !t.voidingTxId) {
-                const desc = t.description.toLowerCase();
-                const isInv = desc.includes('inventario') || desc.includes('físico') || desc.includes('activos');
-                if (isInv) {
-                    asCosto += (t.cogs !== undefined ? t.cogs : t.amount);
-                    isRelevant = true;
-                } else {
-                    if (t.description.includes('+')) {
-                        asIngreso += t.amount;
-                        isRelevant = true;
-                    } else if (t.description.includes('-')) {
-                        asGasto += t.amount;
-                        isRelevant = true;
+                // Use structured details fields — same logic as statementFilter classification
+                const cashMethod = t.details?.method === 'caja_chica' || t.details?.method === 'banco';
+                if (cashMethod) {
+                    // Cash audit: positive diff = loss (Gastos), negative diff = gain (Ingresos)
+                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
+                    if (diff !== undefined) {
+                        if (diff < 0) { asIngreso += t.amount; isRelevant = true; }
+                        else if (diff > 0) { asGasto += t.amount; isRelevant = true; }
                     }
+                } else {
+                    // Inventory count or asset count → Costos
+                    const cogsVal = t.cogs !== undefined ? t.cogs : t.amount;
+                    if (cogsVal !== 0) { asCosto += cogsVal; isRelevant = true; }
                 }
             }
 
