@@ -145,6 +145,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
 
         const prevLedger = { ...accounts, ...getLedgerAccounts() }; // Capture snapshot
         let newAccounts = accounts;
+        let purchaseBatchId: string | undefined; // Captured so we can store it in the transaction
         if (tab === 'inventory') {
             newAccounts = AccountingActions.purchaseInventory(accounts, amount, form.method as any);
 
@@ -158,6 +159,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
                         stock: quantity,
                         cost: amount / quantity
                     };
+                    purchaseBatchId = newBatch.id; // Capture for transaction details
 
                     const existingBatches = item.batches && item.batches.length > 0 ? [...item.batches] : [{
                         id: 'legacy-' + crypto.randomUUID(),
@@ -205,7 +207,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         addTransaction({
             id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount,
             description: `Compra ${tab === 'inventory' ? 'Inventario' : 'Activo'}: ${form.itemName} (x${formatQty(quantity)})`,
-            details: { itemName: form.itemName, quantity, method: form.method, type: tab, providerName: targetProvider }
+            details: { itemId: form.itemId, itemName: form.itemName, batchId: purchaseBatchId, quantity, method: form.method, type: tab, providerName: targetProvider }
         });
 
         const freshState = useStore.getState();

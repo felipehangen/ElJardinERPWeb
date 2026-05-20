@@ -358,17 +358,42 @@ export const useStore = create<AppState & StoreActions>()(
                         break;
                     case 'PURCHASE':
                         reverseCash(tx.details?.method, tx.amount, false);
-                        // If it was Inventory, we must REMOVE the batch we added. (Simplification: Just deduct stock via FIFO)
                         if (tx.details?.type === 'inventory') {
-                            const relatedItem = updatedInventory.find(i => i.name === tx.details.itemName);
+                            // Find the item by ID (preferred) or fall back to name for legacy txs
+                            const relatedItem = updatedInventory.find(i =>
+                                tx.details.itemId ? i.id === tx.details.itemId : i.name === tx.details.itemName
+                            );
                             if (relatedItem) {
-                                const qtyToRemove = tx.details.quantity;
-                                const newStock = relatedItem.stock - qtyToRemove;
-                                
-                                // Reduce the physical stock
-                                updatedInventory = updatedInventory.map(i => i.name === relatedItem.name ? { ...i, stock: newStock } : i);
-                                
-                                // Fix missing reduction in Accounting Value
+                                let newBatches = [...(relatedItem.batches || [])];
+
+                                if (tx.details.batchId) {
+                                    // Precise removal: drop the exact batch added by this purchase
+                                    newBatches = newBatches.filter(b => b.id !== tx.details.batchId);
+                                } else {
+                                    // Legacy fallback: peel qty from the newest batch (LIFO — purchase reversal)
+                                    let qtyToRemove = tx.details.quantity;
+                                    const sorted = [...newBatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                                    newBatches = [];
+                                    for (const batch of sorted) {
+                                        if (qtyToRemove <= 0) { newBatches.push(batch); continue; }
+                                        if (batch.stock <= qtyToRemove) {
+                                            qtyToRemove -= batch.stock; // consume whole batch
+                                        } else {
+                                            newBatches.push({ ...batch, stock: batch.stock - qtyToRemove });
+                                            qtyToRemove = 0;
+                                        }
+                                    }
+                                }
+
+                                const newTotalStock = newBatches.reduce((sum, b) => sum + b.stock, 0);
+                                const newTotalValue = newBatches.reduce((sum, b) => sum + b.stock * b.cost, 0);
+                                const newAvgCost = newTotalStock > 0 ? newTotalValue / newTotalStock : relatedItem.cost;
+
+                                updatedInventory = updatedInventory.map(i =>
+                                    (tx.details.itemId ? i.id === tx.details.itemId : i.name === tx.details.itemName)
+                                        ? { ...i, stock: newTotalStock, cost: newAvgCost, batches: newBatches }
+                                        : i
+                                );
                                 newAccounts.inventario -= tx.amount;
                             }
                         } else if (tx.details?.type === 'asset') {
@@ -398,7 +423,14 @@ export const useStore = create<AppState & StoreActions>()(
                         // Cash adjustments store their account under details.method (not details.account)
                         const cashAccount = tx.details?.account || tx.details?.method;
                         if (cashAccount === 'caja_chica' || cashAccount === 'banco') {
-                            const isLoss = tx.description.includes('-');
+                            // Use stored numeric diff (reliable) instead of parsing the description string
+                            // diffCaja/diffBanco > 0 means system had more than reality → cash was reduced (loss)
+                            const numericDiff = cashAccount === 'caja_chica'
+                                ? (tx.details?.diffCaja ?? NaN)
+                                : (tx.details?.diffBanco ?? NaN);
+                            const isLoss = !isNaN(numericDiff)
+                                ? numericDiff > 0                   // precise: use stored value
+                                : tx.description.includes('-');     // legacy fallback: parse description
                             reverseCash(cashAccount, tx.amount, !isLoss);
                             // Reverse the patrimonio effect of the original auditCash call
                             if (isLoss) {
@@ -461,7 +493,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 10, // v10 = fix patrimonio drift from asset adjustments never updating patrimonio
+            version: 11, // v11 = full clean reset; fixes purchase FIFO reversal + cash adj reversal reliability
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -643,6 +675,14 @@ export const useStore = create<AppState & StoreActions>()(
                 if (version < 10 && state.accounts) {
                     const { banco = 0, caja_chica = 0, inventario = 0, activo_fijo = 0 } = state.accounts;
                     state.accounts.patrimonio = banco + caja_chica + inventario + activo_fijo;
+                }
+
+                // v10 -> v11: Full clean reset.
+                // Fixes: (1) purchase reversal now removes the exact FIFO batch via stored batchId;
+                // (2) cash adjustment reversal now uses stored numeric diff instead of string parsing.
+                // Old data is incompatible with the new batchId tracking, so we start fresh.
+                if (version < 11) {
+                    return { ...INITIAL_STATE } as any;
                 }
 
                 return state as AppState & StoreActions;
