@@ -405,20 +405,32 @@ export const useStore = create<AppState & StoreActions>()(
                         // Reverse equity hit: Dr. Cash / Cr. Patrimonio (restores equity reduced when expense was paid)
                         newAccounts.patrimonio = (newAccounts.patrimonio || 0) + tx.amount;
                         break;
-                    case 'PRODUCTION':
-                        // Reverse Output
+                    case 'PRODUCTION': {
+                        // Use tx.amount as the canonical FIFO cost recorded at production time
+                        const originalTotalCost = tx.amount;
+                        // Reverse Output — remove the produced batch at its original cost
                         if (tx.details?.outputName) {
-                            const outputCost = updatedInventory.find(i => i.name === tx.details.outputName)?.cost || 0;
-                            updatedInventory = updatedInventory.map(i => i.name === tx.details.outputName ? { ...i, stock: i.stock - tx.details.outputQty } : i);
-                            newAccounts.inventario -= (outputCost * tx.details.outputQty);
+                            updatedInventory = updatedInventory.map(i =>
+                                (tx.details.outputId ? i.id === tx.details.outputId : i.name === tx.details.outputName)
+                                    ? { ...i, stock: i.stock - tx.details.outputQty }
+                                    : i
+                            );
+                            newAccounts.inventario -= originalTotalCost;
                         }
-                        // Refund Ingredients
+                        // Refund Ingredients — scale proportionally so total refund == tx.amount exactly
                         if (tx.details?.ingredients) {
+                            const estimatedTotal = tx.details.ingredients.reduce((sum: number, ing: any) =>
+                                sum + parseFloat(ing.qty) * ing.item.cost, 0
+                            );
                             tx.details.ingredients.forEach((ing: any) => {
-                                reverseInventoryFIFO(ing.item.id, parseFloat(ing.qty), ing.qty * ing.item.cost);
+                                const proportion = estimatedTotal > 0
+                                    ? (parseFloat(ing.qty) * ing.item.cost) / estimatedTotal
+                                    : 1 / tx.details.ingredients.length;
+                                reverseInventoryFIFO(ing.item.id, parseFloat(ing.qty), originalTotalCost * proportion);
                             });
                         }
                         break;
+                    }
                     case 'ADJUSTMENT': {
                         // Cash adjustments store their account under details.method (not details.account)
                         const cashAccount = tx.details?.account || tx.details?.method;

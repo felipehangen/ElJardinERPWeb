@@ -141,7 +141,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         const unitPrice = parseFloat(form.unitPrice || '0');
         const amount = quantity * unitPrice;
 
-        if (amount < 0 && tab === 'inventory') return; // Extra safety
+        if (amount <= 0 && tab === 'inventory') return; // Extra safety: prevent ₡0 spurious FIFO batches
 
         const prevLedger = { ...accounts, ...getLedgerAccounts() }; // Capture snapshot
         let newAccounts = accounts;
@@ -883,8 +883,10 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
         };
 
         const existing = inventory.find(i => normalizeName(i.name) === normalizeName(output.name));
+        let outputId: string;
 
         if (existing) {
+            outputId = existing.id;
             const existingBatches = existing.batches && existing.batches.length > 0 ? [...existing.batches] : [{
                 id: 'legacy-' + crypto.randomUUID(),
                 date: new Date(0).toISOString(),
@@ -902,8 +904,9 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
                 batches: [...existingBatches, newBatch]
             });
         } else {
+            outputId = crypto.randomUUID();
             addInventoryItem({
-                id: crypto.randomUUID(),
+                id: outputId,
                 name: output.name,
                 stock: outputQty,
                 cost: newBatch.cost, // Use explicit exact batch cost
@@ -920,7 +923,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
             amount: exactTotalCost,
             description: `Cocina: ${outputQty}x ${output.name} (usando ${ingText})`,
             cogs: exactTotalCost,
-            details: { outputName: output.name, outputQty, ingredients }
+            details: { outputId, outputName: output.name, outputQty, ingredients }
         });
 
         const freshState = useStore.getState();
