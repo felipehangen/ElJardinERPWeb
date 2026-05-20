@@ -51,7 +51,7 @@ export const SystemAuditTest = () => {
 
         // ── Reset ────────────────────────────────────────────────────────────
         log('══════════════════════════════════════════════', 'step');
-        log('  EL JARDIN ERP — Simulación Contable v1.0.5 ', 'step');
+        log('  EL JARDIN ERP — Simulación Contable v1.0.7 ', 'step');
         log('══════════════════════════════════════════════', 'step');
         step(0, 'Reset a estado limpio');
         useStore.getState().importState({ ...INITIAL_STATE, initialized: true });
@@ -63,15 +63,19 @@ export const SystemAuditTest = () => {
         log('  Resultados Acumulados serán visibles en Paso a Paso', 'info');
         log('', 'info');
 
-        // Item IDs we'll reuse
+        // Item IDs reused across steps
         const harinaId = crypto.randomUUID();
         const panId    = crypto.randomUUID();
 
-        // ── 1. Capital injection
+        // ── 1. Capital injection ─────────────────────────────────────────────
         step(1, 'Capital inicial: banco ₡100k + caja ₡50k');
         useStore.getState().updateAccounts(prev => ({
-            ...prev, banco: prev.banco + 100000, caja_chica: prev.caja_chica + 50000, patrimonio: prev.patrimonio + 150000,
+            ...prev,
+            banco: prev.banco + 100000,
+            caja_chica: prev.caja_chica + 50000,
+            // patrimonio derived by reconcile()
         }));
+        useStore.getState().reconcile();
         useStore.getState().addTransaction({
             id: crypto.randomUUID(), type: 'INITIALIZATION', date: new Date().toISOString(), amount: 150000,
             description: 'Aporte de Capital (Simulación)',
@@ -79,12 +83,13 @@ export const SystemAuditTest = () => {
         });
         checkEq('post-capital');
 
-        // ── 2. Purchase inventory
+        // ── 2. Purchase inventory ────────────────────────────────────────────
         step(2, 'Compra Inventario: Harina x10 @₡1,000 (banco)');
         {
             const batch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 10, cost: 1000 };
             useStore.getState().addInventoryItem({ id: harinaId, name: 'Harina', cost: 1000, stock: 10, batches: [batch] });
             useStore.getState().updateAccounts(prev => AccountingActions.purchaseInventory(prev, 10000, 'banco'));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount: 10000,
                 description: 'Compra Inventario: Harina (x10)',
@@ -93,23 +98,26 @@ export const SystemAuditTest = () => {
         }
         checkEq('post-compra-harina');
 
-        // ── 3. Purchase asset
+        // ── 3. Purchase asset ────────────────────────────────────────────────
         step(3, 'Compra Activo Fijo: Batidora ₡20,000 (caja chica)');
         {
-            useStore.getState().addAssetItem({ id: crypto.randomUUID(), name: 'Batidora', value: 20000, quantity: 1 });
+            const batidoraId = crypto.randomUUID();
+            useStore.getState().addAssetItem({ id: batidoraId, name: 'Batidora', value: 20000, quantity: 1 });
             useStore.getState().updateAccounts(prev => AccountingActions.purchaseAsset(prev, 20000, 'caja_chica'));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount: 20000,
                 description: 'Compra Activo: Batidora (x1)',
-                details: { itemName: 'Batidora', quantity: 1, method: 'caja_chica', type: 'asset' },
+                details: { assetId: batidoraId, itemName: 'Batidora', quantity: 1, method: 'caja_chica', type: 'asset' },
             });
         }
         checkEq('post-compra-batidora');
 
-        // ── 4. Sale (service — adds to Ventas)
-        step(4, 'Venta: Café x2 @₡1,500 = ₡3,000 (caja chica)  ← Afecta Ventas');
+        // ── 4. Sale (service) ────────────────────────────────────────────────
+        step(4, 'Venta: Café x2 @₡1,500 = ₡3,000 (caja chica)');
         {
-            useStore.getState().updateAccounts(prev => AccountingActions.registerSale(prev, 3000, 0, false, 'caja_chica'));
+            useStore.getState().updateAccounts(prev => AccountingActions.registerSale(prev, 3000, 'caja_chica'));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'SALE', date: new Date().toISOString(), amount: 3000,
                 description: 'Venta: Café (x2)', cogs: 0,
@@ -118,10 +126,11 @@ export const SystemAuditTest = () => {
         }
         checkEq('post-venta');
 
-        // ── 5. Expense (adds to Gastos)
-        step(5, 'Gasto: Luz ₡5,000 (banco)  ← Afecta Gastos');
+        // ── 5. Expense ───────────────────────────────────────────────────────
+        step(5, 'Gasto: Luz ₡5,000 (banco)');
         {
             useStore.getState().updateAccounts(prev => AccountingActions.payExpense(prev, 5000, 'banco'));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'EXPENSE', date: new Date().toISOString(), amount: 5000,
                 description: 'Gasto (Luz)', details: { typeName: 'Luz', method: 'banco' },
@@ -129,27 +138,29 @@ export const SystemAuditTest = () => {
         }
         checkEq('post-gasto');
 
-        // ── 6. Production
+        // ── 6. Production ────────────────────────────────────────────────────
         step(6, 'Producción: 2x Harina → 10x Pan');
         {
             const cogs = useStore.getState().consumeInventoryFIFO(harinaId, 2);
             const panBatch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 10, cost: cogs / 10 };
             useStore.getState().addInventoryItem({ id: panId, name: 'Pan', cost: cogs / 10, stock: 10, batches: [panBatch] });
             useStore.getState().updateAccounts(prev => AccountingActions.production(prev));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'PRODUCTION', date: new Date().toISOString(),
                 amount: cogs, description: 'Cocina: 10x Pan (2x Harina)', cogs,
-                details: { outputName: 'Pan', outputQty: 10, ingredients: [{ item: { id: harinaId, name: 'Harina', cost: 1000 }, qty: 2 }] },
+                details: { outputId: panId, outputName: 'Pan', outputQty: 10, ingredients: [{ item: { id: harinaId, name: 'Harina', cost: 1000 }, qty: 2 }] },
             });
         }
         checkEq('post-producción');
 
-        // ── 7. Cash adjustment — loss
+        // ── 7. Cash adjustment — loss ────────────────────────────────────────
         step(7, 'Ajuste Caja Chica: faltante ₡1,000');
         {
             const s = snap();
             const diffCaja = 1000; // system > real → loss
             useStore.getState().updateAccounts(prev => AccountingActions.auditCash(prev, s.caja_chica, s.caja_chica - diffCaja, 'caja_chica'));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'ADJUSTMENT', date: new Date().toISOString(),
                 amount: diffCaja, description: `Ajuste Caja Chica (Dif: -₡${diffCaja})`,
@@ -158,12 +169,13 @@ export const SystemAuditTest = () => {
         }
         checkEq('post-ajuste-caja');
 
-        // ── 8. Cash adjustment — gain
+        // ── 8. Cash adjustment — gain ────────────────────────────────────────
         step(8, 'Ajuste Bancos: sobrante ₡500');
         {
             const s = snap();
             const diffBanco = -500; // system < real → gain
             useStore.getState().updateAccounts(prev => AccountingActions.auditCash(prev, s.banco, s.banco - diffBanco, 'banco'));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'ADJUSTMENT', date: new Date().toISOString(),
                 amount: 500, description: `Ajuste Bancos (Dif: +₡500)`,
@@ -172,11 +184,11 @@ export const SystemAuditTest = () => {
         }
         checkEq('post-ajuste-banco');
 
-        // ── 9. Inventory count
+        // ── 9. Inventory count ───────────────────────────────────────────────
         step(9, 'Toma Física: 3x Pan faltante');
         {
             const lost = useStore.getState().consumeInventoryFIFO(panId, 3);
-            useStore.getState().updateAccounts(prev => AccountingActions.adjustInventoryValues(prev, lost));
+            useStore.getState().reconcile();
             useStore.getState().addTransaction({
                 id: crypto.randomUUID(), type: 'ADJUSTMENT', date: new Date().toISOString(),
                 amount: lost, description: 'Ajuste Físico Inventario (Merma)', cogs: lost,
@@ -185,16 +197,23 @@ export const SystemAuditTest = () => {
         }
         checkEq('post-toma-inventario');
 
-        // ── 10. Asset count
+        // ── 10. Asset count ──────────────────────────────────────────────────
         step(10, 'Toma Activos: Batidora vale ₡2,000 menos');
         {
             const diff = 2000;
-            useStore.getState().updateAccounts(prev => ({ ...prev, activo_fijo: prev.activo_fijo - diff, patrimonio: prev.patrimonio - diff }));
-            useStore.getState().addTransaction({
-                id: crypto.randomUUID(), type: 'ADJUSTMENT', date: new Date().toISOString(),
-                amount: diff, description: 'Ajuste de Activos (Dif: -₡2000)', cogs: diff,
-                details: { diff, counts: {}, itemDetails: [] },
-            });
+            const batidora = useStore.getState().assets.find(a => a.name === 'Batidora');
+            if (batidora) {
+                const newVal = batidora.value - diff;
+                useStore.getState().updateAssetItem(batidora.id, { value: newVal });
+                useStore.getState().reconcile();
+                useStore.getState().addTransaction({
+                    id: crypto.randomUUID(), type: 'ADJUSTMENT', date: new Date().toISOString(),
+                    amount: diff, description: 'Ajuste de Activos (Dif: -₡2000)', cogs: diff,
+                    details: { diff, counts: {}, itemDetails: [{ id: batidora.id, name: batidora.name, sysVal: batidora.value, realVal: newVal }] },
+                });
+            } else {
+                fail('Batidora not found for asset count test');
+            }
         }
         checkEq('post-toma-activos');
 
@@ -211,10 +230,11 @@ export const SystemAuditTest = () => {
         log('  Fase 1 permanece intacta. P&L no se altera.', 'info');
         log('', 'info');
 
-        // ── 11. Void SALE
+        // ── 11. Void SALE ────────────────────────────────────────────────────
         step(11, 'Anular Venta — transacción fresca ₡100');
         {
-            useStore.getState().updateAccounts(prev => AccountingActions.registerSale(prev, 100, 0, false, 'caja_chica'));
+            useStore.getState().updateAccounts(prev => AccountingActions.registerSale(prev, 100, 'caja_chica'));
+            useStore.getState().reconcile();
             const testId = crypto.randomUUID();
             useStore.getState().addTransaction({
                 id: testId, type: 'SALE', date: new Date().toISOString(), amount: 100,
@@ -222,7 +242,7 @@ export const SystemAuditTest = () => {
                 details: { method: 'caja_chica', cart: [{ name: 'Test', qty: 1, price: 100 }] },
             });
             const before = snap();
-            // before already includes the sale — we want state BEFORE the sale
+            // beforeSale = state that existed BEFORE the sale was applied
             const beforeSale = { ...before, caja_chica: before.caja_chica - 100, patrimonio: before.patrimonio - 100, total: before.total - 100 };
             useStore.getState().revertTransaction(testId);
             const tx = useStore.getState().transactions.find(t => t.id === testId);
@@ -231,10 +251,11 @@ export const SystemAuditTest = () => {
             checkRevert('SALE', beforeSale);
         }
 
-        // ── 12. Void EXPENSE
+        // ── 12. Void EXPENSE ─────────────────────────────────────────────────
         step(12, 'Anular Gasto — transacción fresca ₡100');
         {
             useStore.getState().updateAccounts(prev => AccountingActions.payExpense(prev, 100, 'banco'));
+            useStore.getState().reconcile();
             const testId = crypto.randomUUID();
             useStore.getState().addTransaction({
                 id: testId, type: 'EXPENSE', date: new Date().toISOString(), amount: 100,
@@ -249,7 +270,7 @@ export const SystemAuditTest = () => {
             checkRevert('EXPENSE', beforeExp);
         }
 
-        // ── 13. Void PURCHASE inventory — verifies batchId fix
+        // ── 13. Void PURCHASE inventory — verifies batchId fix ───────────────
         step(13, 'Anular Compra Inventario — verifica batch FIFO exacto');
         {
             const testItemId  = crypto.randomUUID();
@@ -257,6 +278,7 @@ export const SystemAuditTest = () => {
             const testBatch = { id: testBatchId, date: new Date().toISOString(), stock: 5, cost: 400 };
             useStore.getState().addInventoryItem({ id: testItemId, name: 'Arroz (Test)', cost: 400, stock: 5, batches: [testBatch] });
             useStore.getState().updateAccounts(prev => AccountingActions.purchaseInventory(prev, 2000, 'banco'));
+            useStore.getState().reconcile();
             const testId = crypto.randomUUID();
             useStore.getState().addTransaction({
                 id: testId, type: 'PURCHASE', date: new Date().toISOString(), amount: 2000,
@@ -264,6 +286,7 @@ export const SystemAuditTest = () => {
                 details: { itemId: testItemId, itemName: 'Arroz (Test)', batchId: testBatchId, quantity: 5, method: 'banco', type: 'inventory' },
             });
             const before = snap();
+            // Purchase is cash↔inventory swap — total assets unchanged
             const beforePurch = { ...before, banco: before.banco + 2000, inventario: before.inventario - 2000, total: before.total };
             useStore.getState().revertTransaction(testId);
 
@@ -272,18 +295,19 @@ export const SystemAuditTest = () => {
             else fail('Compra NO fue anulada');
 
             const batchGone = !useStore.getState().inventory.find(i => i.id === testItemId)?.batches?.some(b => b.id === testBatchId);
-            if (batchGone) ok('Batch FIFO exacto eliminado ✓ (fix v1.0.5)');
+            if (batchGone) ok('Batch FIFO exacto eliminado ✓');
             else fail('Batch FIFO NO fue eliminado — FIFO pool corrupto');
 
             checkRevert('PURCHASE-inventory', beforePurch);
         }
 
-        // ── 14. Void cash adjustment — verifies numeric diff fix
-        step(14, 'Anular Ajuste Caja — verifica diff numérico (fix v1.0.5)');
+        // ── 14. Void cash adjustment — loss ──────────────────────────────────
+        step(14, 'Anular Ajuste Caja (Faltante) — verifica diff numérico');
         {
             const s = snap();
             const diffCaja = 300;
             useStore.getState().updateAccounts(prev => AccountingActions.auditCash(prev, s.caja_chica, s.caja_chica - diffCaja, 'caja_chica'));
+            useStore.getState().reconcile();
             const testId = crypto.randomUUID();
             useStore.getState().addTransaction({
                 id: testId, type: 'ADJUSTMENT', date: new Date().toISOString(),
@@ -294,64 +318,75 @@ export const SystemAuditTest = () => {
             const beforeAdj = { ...before, caja_chica: before.caja_chica + diffCaja, patrimonio: before.patrimonio + diffCaja, total: before.total + diffCaja };
             useStore.getState().revertTransaction(testId);
             const tx = useStore.getState().transactions.find(t => t.id === testId);
-            if (tx?.status === 'VOIDED') ok('Ajuste Caja marcado VOIDED');
+            if (tx?.status === 'VOIDED') ok('Ajuste Caja (faltante) marcado VOIDED');
             else fail('Ajuste Caja NO fue anulado');
-            checkRevert('ADJUSTMENT-cash', beforeAdj);
+            checkRevert('ADJUSTMENT-cash-loss', beforeAdj);
         }
 
-        // ── 15. Void inventory count adjustment
-        step(15, 'Anular Toma Física Inventario');
+        // ── 15. Void inventory count adjustment ──────────────────────────────
+        step(15, 'Anular Toma Física Inventario — stock no se restaura (modelo periódico)');
         {
             const lostVal = useStore.getState().consumeInventoryFIFO(panId, 1);
-            useStore.getState().updateAccounts(prev => AccountingActions.adjustInventoryValues(prev, lostVal));
+            useStore.getState().reconcile();
             const testId = crypto.randomUUID();
             useStore.getState().addTransaction({
                 id: testId, type: 'ADJUSTMENT', date: new Date().toISOString(),
                 amount: lostVal, description: '[TEST] Ajuste Inventario para anular', cogs: lostVal,
                 details: { itemsAdjusted: [{ name: 'Pan', qty: 1 }] },
             });
+            // Inventory count void: stock is NOT restored (periodic model by design).
+            // The void removes the COGS from the P&L ledger but accounts don't change.
             const before = snap();
-            const beforeAdj = { ...before, inventario: before.inventario + lostVal, patrimonio: before.patrimonio + lostVal, total: before.total + lostVal };
             useStore.getState().revertTransaction(testId);
             const tx = useStore.getState().transactions.find(t => t.id === testId);
             if (tx?.status === 'VOIDED') ok('Ajuste Inventario marcado VOIDED');
             else fail('Ajuste Inventario NO fue anulado');
-            checkRevert('ADJUSTMENT-inventory', beforeAdj);
+            checkRevert('ADJUSTMENT-inventory', before); // expects no account change
         }
 
-        // ── 16. Void asset count adjustment
-        step(16, 'Anular Toma Activos Físicos');
+        // ── 16. Void asset count adjustment ──────────────────────────────────
+        step(16, 'Anular Toma Activos Físicos — restaura valor en catálogo');
         {
             const diff = 500;
-            useStore.getState().updateAccounts(prev => ({ ...prev, activo_fijo: prev.activo_fijo - diff, patrimonio: prev.patrimonio - diff }));
-            const testId = crypto.randomUUID();
-            useStore.getState().addTransaction({
-                id: testId, type: 'ADJUSTMENT', date: new Date().toISOString(),
-                amount: diff, description: '[TEST] Ajuste Activos para anular (Dif: -₡500)', cogs: diff,
-                details: { diff, counts: {}, itemDetails: [] },
-            });
-            const before = snap();
-            const beforeAdj = { ...before, activo_fijo: before.activo_fijo + diff, patrimonio: before.patrimonio + diff, total: before.total + diff };
-            useStore.getState().revertTransaction(testId);
-            const tx = useStore.getState().transactions.find(t => t.id === testId);
-            if (tx?.status === 'VOIDED') ok('Ajuste Activos marcado VOIDED');
-            else fail('Ajuste Activos NO fue anulado');
-            checkRevert('ADJUSTMENT-assets', beforeAdj);
+            const someAsset = useStore.getState().assets[0];
+            if (someAsset) {
+                const preVal = someAsset.value;
+                const newVal = preVal - diff;
+                useStore.getState().updateAssetItem(someAsset.id, { value: newVal });
+                useStore.getState().reconcile();
+                const testId = crypto.randomUUID();
+                useStore.getState().addTransaction({
+                    id: testId, type: 'ADJUSTMENT', date: new Date().toISOString(),
+                    amount: diff, description: '[TEST] Ajuste Activos para anular (Dif: -₡500)', cogs: diff,
+                    details: { diff, counts: {}, itemDetails: [{ id: someAsset.id, name: someAsset.name, sysVal: preVal, realVal: newVal }] },
+                });
+                const before = snap();
+                const beforeAdj = { ...before, activo_fijo: before.activo_fijo + diff, patrimonio: before.patrimonio + diff, total: before.total + diff };
+                useStore.getState().revertTransaction(testId);
+                const tx = useStore.getState().transactions.find(t => t.id === testId);
+                if (tx?.status === 'VOIDED') ok('Ajuste Activos marcado VOIDED');
+                else fail('Ajuste Activos NO fue anulado');
+                checkRevert('ADJUSTMENT-assets', beforeAdj);
+            } else {
+                fail('No assets found for asset count reversal test');
+            }
         }
 
-        // ── 17. Void asset purchase
+        // ── 17. Void asset purchase ───────────────────────────────────────────
         step(17, 'Anular Compra Activo Fijo');
         {
             const assetId = crypto.randomUUID();
             useStore.getState().addAssetItem({ id: assetId, name: 'Silla (Test)', value: 1000, quantity: 1 });
             useStore.getState().updateAccounts(prev => AccountingActions.purchaseAsset(prev, 1000, 'caja_chica'));
+            useStore.getState().reconcile();
             const testId = crypto.randomUUID();
             useStore.getState().addTransaction({
                 id: testId, type: 'PURCHASE', date: new Date().toISOString(), amount: 1000,
                 description: '[TEST] Compra Activo para anular',
-                details: { itemName: 'Silla (Test)', quantity: 1, method: 'caja_chica', type: 'asset' },
+                details: { assetId, itemName: 'Silla (Test)', quantity: 1, method: 'caja_chica', type: 'asset' },
             });
             const before = snap();
+            // Asset purchase is cash↔activo swap — total assets unchanged
             const beforePurch = { ...before, caja_chica: before.caja_chica + 1000, activo_fijo: before.activo_fijo - 1000, total: before.total };
             useStore.getState().revertTransaction(testId);
             const tx = useStore.getState().transactions.find(t => t.id === testId);
@@ -360,7 +395,99 @@ export const SystemAuditTest = () => {
             checkRevert('PURCHASE-asset', beforePurch);
         }
 
-        // ── Final
+        // ── 18. Void PRODUCTION ───────────────────────────────────────────────
+        step(18, 'Anular Producción — ingrediente restaurado, output eliminado');
+        {
+            const ingId  = crypto.randomUUID();
+            const outId  = crypto.randomUUID();
+            const ingBatch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 5, cost: 200 };
+            useStore.getState().addInventoryItem({ id: ingId, name: 'Azúcar (Test)', cost: 200, stock: 5, batches: [ingBatch] });
+            useStore.getState().reconcile();
+
+            const cogs = useStore.getState().consumeInventoryFIFO(ingId, 2); // 2 × ₡200 = ₡400
+            const outCostPerUnit = cogs / 5;
+            const outBatch = { id: crypto.randomUUID(), date: new Date().toISOString(), stock: 5, cost: outCostPerUnit };
+            useStore.getState().addInventoryItem({ id: outId, name: 'Caramelos (Test)', cost: outCostPerUnit, stock: 5, batches: [outBatch] });
+            useStore.getState().updateAccounts(prev => AccountingActions.production(prev));
+            useStore.getState().reconcile();
+
+            const testId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: testId, type: 'PRODUCTION', date: new Date().toISOString(),
+                amount: cogs, description: 'Cocina: 5x Caramelos (2x Azúcar) [TEST]', cogs,
+                details: { outputId: outId, outputName: 'Caramelos (Test)', outputQty: 5,
+                    ingredients: [{ item: { id: ingId, name: 'Azúcar (Test)', cost: 200 }, qty: 2 }] },
+            });
+
+            // Production is cost-neutral: inventory value is unchanged
+            const before = snap();
+            useStore.getState().revertTransaction(testId);
+
+            const tx = useStore.getState().transactions.find(t => t.id === testId);
+            if (tx?.status === 'VOIDED') ok('Producción marcada VOIDED');
+            else fail('Producción NO fue anulada');
+
+            const outItem = useStore.getState().inventory.find(i => i.id === outId);
+            const ingItem = useStore.getState().inventory.find(i => i.id === ingId);
+            if ((outItem?.stock ?? 1) === 0) ok('Output retirado del inventario físico');
+            else fail('Output NO retirado', `stock = ${outItem?.stock}`);
+            if (Math.abs((ingItem?.stock ?? 0) - 5) < 0.01) ok('Ingrediente restaurado al stock original');
+            else fail('Ingrediente NO restaurado', `stock = ${ingItem?.stock}`);
+
+            checkRevert('PRODUCTION', before); // cost-neutral → accounts unchanged
+        }
+
+        // ── 19. Void split-payment SALE ───────────────────────────────────────
+        step(19, 'Anular Venta con Pago Mixto (Split Caja ₡300 + Banco ₡200)');
+        {
+            const splitAmounts = { caja_chica: 300, banco: 200 };
+            useStore.getState().updateAccounts(prev => AccountingActions.registerSale(prev, 500, 'split', splitAmounts));
+            useStore.getState().reconcile();
+            const testId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: testId, type: 'SALE', date: new Date().toISOString(), amount: 500,
+                description: '[TEST] Venta Split para anular', cogs: 0,
+                details: { method: 'split', splitAmounts, cart: [{ name: 'Test', qty: 1, price: 500 }] },
+            });
+            const before = snap();
+            const beforeSale = {
+                ...before,
+                caja_chica: before.caja_chica - 300,
+                banco: before.banco - 200,
+                patrimonio: before.patrimonio - 500,
+                total: before.total - 500,
+            };
+            useStore.getState().revertTransaction(testId);
+            const tx = useStore.getState().transactions.find(t => t.id === testId);
+            if (tx?.status === 'VOIDED') ok('Venta Split marcada VOIDED');
+            else fail('Venta Split NO fue anulada');
+            checkRevert('SALE-split', beforeSale);
+        }
+
+        // ── 20. Void cash adjustment — gain ───────────────────────────────────
+        step(20, 'Anular Ajuste Banco (Sobrante/Ganancia ₡400)');
+        {
+            const s = snap();
+            const diffBanco = -400; // negative = gain (system < real)
+            useStore.getState().updateAccounts(prev => AccountingActions.auditCash(prev, s.banco, s.banco - diffBanco, 'banco'));
+            useStore.getState().reconcile();
+            const testId = crypto.randomUUID();
+            useStore.getState().addTransaction({
+                id: testId, type: 'ADJUSTMENT', date: new Date().toISOString(),
+                amount: 400, description: '[TEST] Ajuste Banco Sobrante (Dif: +₡400)',
+                details: { method: 'banco', diffBanco },
+            });
+            const before = snap();
+            // Gain → banco went UP by 400; reversing means it goes DOWN by 400
+            const beforeAdj = { ...before, banco: before.banco - 400, patrimonio: before.patrimonio - 400, total: before.total - 400 };
+            useStore.getState().revertTransaction(testId);
+            const tx = useStore.getState().transactions.find(t => t.id === testId);
+            if (tx?.status === 'VOIDED') ok('Ajuste Banco Sobrante marcado VOIDED');
+            else fail('Ajuste Banco Sobrante NO fue anulado');
+            checkRevert('ADJUSTMENT-cash-gain', beforeAdj);
+        }
+
+        // ── Final ────────────────────────────────────────────────────────────
         log('', 'info');
         const allOk = failed === 0;
         log(`══ RESULTADO: ${passed} pruebas PASADAS, ${failed} FALLIDAS ══`, allOk ? 'ok' : 'fail');
@@ -383,7 +510,7 @@ export const SystemAuditTest = () => {
             <div>
                 <h3 className="font-bold text-lg mb-1">Simulación y Auditoría del Sistema</h3>
                 <p className="text-sm text-gray-500 mb-1">
-                    Resetea a estado limpio y ejecuta 17 pruebas contables verificando
+                    Resetea a estado limpio y ejecuta 20 pruebas contables verificando
                     <code className="mx-1 bg-gray-100 rounded px-1">Activos = Patrimonio</code>
                     después de cada operación.
                 </p>

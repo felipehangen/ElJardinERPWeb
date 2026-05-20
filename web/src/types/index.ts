@@ -72,6 +72,90 @@ export interface ExpenseType {
     hidden?: boolean;
 }
 
+// ─── Transaction Detail Shapes ──────────────────────────────────────────────
+// One interface per operation type.  These are exported so callers can use
+// them explicitly when *creating* transactions (better IDE autocomplete and
+// compile-time field-name checking).  The Transaction.details field is still
+// typed as the union below so that *reading* code (revertTransaction, etc.)
+// doesn't require narrowing casts on every optional-chain access.
+
+export interface PurchaseInventoryDetails {
+    type: 'inventory';
+    itemId?: string;
+    itemName: string;
+    batchId?: string;       // FIFO batch ID — stored for exact reversal
+    assetId?: undefined;
+    quantity: number;
+    method: 'caja_chica' | 'banco';
+    providerName?: string;
+}
+
+export interface PurchaseAssetDetails {
+    type: 'asset';
+    assetId?: string;       // catalog ID — stored at runtime for reversal
+    itemName: string;
+    quantity: number;
+    method: 'caja_chica' | 'banco';
+    providerName?: string;
+}
+
+export interface SaleDetails {
+    method: 'caja_chica' | 'banco' | 'split';
+    splitAmounts?: { caja_chica: number; banco: number };
+    cart: Array<{ id?: string; name: string; qty: number; price: string | number }>;
+}
+
+export interface ExpenseDetails {
+    typeName: string;
+    method: 'caja_chica' | 'banco';
+}
+
+export interface ProductionDetails {
+    outputId?: string;
+    outputName: string;
+    outputQty: number;
+    ingredients: Array<{ item: { id: string; name: string; cost: number }; qty: number | string }>;
+}
+
+export interface CashAdjustmentDetails {
+    method: 'caja_chica' | 'banco';
+    account?: 'caja_chica' | 'banco';   // alias used by some older paths
+    diffCaja?: number;   // positive = loss (system > real), negative = gain
+    diffBanco?: number;  // positive = loss (system > real), negative = gain
+}
+
+export interface InventoryCountDetails {
+    itemsAdjusted: Array<{ name: string; qty: number; sysVal?: number }>;
+}
+
+export interface AssetCountDetails {
+    diff: number;
+    counts: Record<string, number>;
+    itemDetails: Array<{ id: string; name?: string; sysVal: number; realVal?: number }>;
+}
+
+export interface InitializationDetails {
+    isInitialOnboarding: boolean;
+    cash: number;
+    bank: number;
+    inventoryValue: number;
+    assetsValue: number;
+    inventoryDetails?: InventoryItem[];
+    assetDetails?: AssetItem[];
+}
+
+/** Union of all recognized transaction detail shapes. */
+export type TransactionDetails =
+    | PurchaseInventoryDetails
+    | PurchaseAssetDetails
+    | SaleDetails
+    | ExpenseDetails
+    | ProductionDetails
+    | CashAdjustmentDetails
+    | InventoryCountDetails
+    | AssetCountDetails
+    | InitializationDetails;
+
 export interface Transaction {
     id: string;
     date: string;
@@ -79,7 +163,10 @@ export interface Transaction {
     amount: number;
     description: string;
     cogs?: number; // Tracks exact Cost of Goods Sold for reporting correctly by month
-    details?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    details?: any; // Typed sub-interfaces exported above (TransactionDetails union).
+                   // Kept as `any` here so optional-chain reads in revertTransaction /
+                   // getLedgerAccounts don't require narrowing casts on every access.
     status?: 'ACTIVE' | 'VOIDED'; // Added for Reversions
     voidingTxId?: string; // Links this transaction to the reversing event
 }

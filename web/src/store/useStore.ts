@@ -249,8 +249,12 @@ export const useStore = create<AppState & StoreActions>()(
                     }
                 }
 
+                // Clamp phantom stock — same guard as consumeInventoryFIFO.
                 if (remainingQty > 0) {
-                    totalCost += remainingQty * item.cost;
+                    console.warn(
+                        `simulateInventoryFIFO: requested ${qty} units of "${item.name}" ` +
+                        `but only ${qty - remainingQty} were available. Clamped.`
+                    );
                 }
 
                 return Number(totalCost.toFixed(2));
@@ -297,9 +301,15 @@ export const useStore = create<AppState & StoreActions>()(
                     }
                 }
 
-                // If asking for more stock than we have, the rest technically costs the average price of the last known batch
+                // Guard: consuming more than available stock is a calling-code bug.
+                // Log a warning and clamp — do NOT charge phantom cost for units that
+                // don't exist, as that would silently corrupt COGS calculations.
                 if (remainingQty > 0) {
-                    totalCost += remainingQty * item.cost;
+                    console.warn(
+                        `consumeInventoryFIFO: requested ${qty} units of "${item.name}" ` +
+                        `but only ${qty - remainingQty} were available. ` +
+                        `${remainingQty} phantom unit(s) clamped — check calling code.`
+                    );
                 }
 
                 const newTotalStock = newBatches.reduce((sum, b) => sum + b.stock, 0);
