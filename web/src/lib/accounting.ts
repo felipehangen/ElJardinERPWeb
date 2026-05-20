@@ -1,134 +1,96 @@
 import type { Accounts } from '../types';
 
+/**
+ * AccountingActions — CASH-ONLY mutations.
+ *
+ * These functions only touch `banco` and `caja_chica`.
+ * `inventario`, `activo_fijo`, and `patrimonio` are DERIVED fields:
+ *
+ *   inventario  = Σ (item.stock × item.cost)   — from the inventory array
+ *   activo_fijo = Σ (asset.value)              — from the assets array
+ *   patrimonio  = banco + caja_chica + inventario + activo_fijo
+ *
+ * Call `reconcile()` (store action) after any physical inventory/asset mutation
+ * to keep those three fields in sync.  The equation is then structurally guaranteed
+ * rather than maintained by hand in every code path.
+ */
 export const AccountingActions = {
-    // 1. Initialization (Detailed)
+
+    // 1. Initialization — sets opening cash balances only.
+    //    Inventory and asset values come from their physical arrays via reconcile().
     initializeWithEquity: (
         cash: number,
         bank: number,
-        inventoryValue: number,
-        assetsValue: number
-    ): Accounts => {
-        const totalAssets = cash + bank + inventoryValue + assetsValue;
-        return {
-            caja_chica: cash,
-            banco: bank,
-            inventario: inventoryValue,
-            activo_fijo: assetsValue,
-            patrimonio: totalAssets, // Aporte Accionista
-        };
-    },
+        _inventoryValue?: number,   // kept for API compat, ignored — derived by reconcile
+        _assetsValue?: number       // kept for API compat, ignored — derived by reconcile
+    ): Accounts => ({
+        caja_chica: cash,
+        banco: bank,
+        inventario: 0,      // will be overwritten by reconcile()
+        activo_fijo: 0,     // will be overwritten by reconcile()
+        patrimonio: cash + bank, // rough; reconcile() sets the final value
+    }),
 
-    // 2. Purchase (Inventario) -> Inventory
-    // Asset exchange: cash leaves, inventory enters. No P&L impact, patrimonio unchanged.
-    purchaseInventory: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => {
-        return {
-            ...prev,
-            [method]: prev[method] - amount,
-            inventario: prev.inventario + amount
-        };
-    },
+    // 2. Purchase Inventory — cash out, inventory in (physical array updated separately).
+    purchaseInventory: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => ({
+        ...prev,
+        [method]: prev[method] - amount,
+        // inventario: handled by reconcile() after addInventoryItem / updateInventoryItem
+    }),
 
-    // Purchase (Asset) -> Fixed Asset
-    // Asset exchange: cash leaves, fixed asset enters. No P&L impact, patrimonio unchanged.
-    purchaseAsset: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => {
-        return {
-            ...prev,
-            [method]: prev[method] - amount,
-            activo_fijo: prev.activo_fijo + amount
-        };
-    },
+    // 3. Purchase Asset — cash out, fixed asset in (physical array updated separately).
+    purchaseAsset: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => ({
+        ...prev,
+        [method]: prev[method] - amount,
+        // activo_fijo: handled by reconcile() after addAssetItem
+    }),
 
-    // 3. Payment (Expense) -> Expense
-    // Cash decreases AND equity decreases (loss recognized). Dr. Gastos / Cr. Cash.
-    payExpense: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => {
-        return {
-            ...prev,
-            [method]: prev[method] - amount,
-            patrimonio: (prev.patrimonio || 0) - amount
-        };
-    },
+    // 4. Expense — cash out, equity decreases (via reconcile: banco drops → patrimonio drops).
+    payExpense: (prev: Accounts, amount: number, method: 'caja_chica' | 'banco'): Accounts => ({
+        ...prev,
+        [method]: prev[method] - amount,
+        // patrimonio: auto-derived by reconcile()
+    }),
 
-    // 4. Sale
-    // Cash increases by revenue, inventory decreases by COGS (if inventoriable),
-    // and equity increases by net profit (revenue - COGS).
+    // 5. Sale — cash in.  COGS and patrimonio change are handled by reconcile().
+    //    (Periodic inventory model: COGS recognised at physical count, not at sale.)
     registerSale: (
         prev: Accounts,
         salePrice: number,
-        cost: number,
-        isInventoriable: boolean,
         method: 'caja_chica' | 'banco' | 'split',
         splitAmounts?: { caja_chica: number; banco: number }
     ): Accounts => {
-        let newAcc = { ...prev };
-
         if (method === 'split' && splitAmounts) {
-            newAcc.caja_chica += splitAmounts.caja_chica;
-            newAcc.banco += splitAmounts.banco;
-        } else {
-            newAcc[method as 'caja_chica' | 'banco'] += salePrice;
-        }
-
-        const netProfit = salePrice - (isInventoriable ? cost : 0);
-        newAcc.patrimonio = (newAcc.patrimonio || 0) + netProfit;
-
-        if (isInventoriable) {
-            newAcc = {
-                ...newAcc,
-                inventario: newAcc.inventario - cost
-            };
-        }
-        return newAcc;
-    },
-
-    // 5. Production (Inventario -> Producto Transformado)
-    // Value moves from Inventory (Ingredients) to Inventory (Finished Product).
-    // Total Inventory Value remains constant (Asset Exchange), ignoring labor/overhead for now.
-    production: (prev: Accounts): Accounts => {
-        // No change in total Asset value, just reclassification inside Inventory.
-        // If we were tracking "Raw Mat" vs "Finished Goods" accounts separately, we would shift here.
-        // For this simple schema, balances stay same.
-        return prev;
-    },
-
-    // 6. Inventory Adjustment (Shortfall/Surplus) - Batch
-    // diffValue: Positive means LOSS (System > Real). Negative means GAIN (System < Real).
-    // Inventory account and patrimonio move together: Dr/Cr Pérdida-Ganancia / Cr/Dr Inventario.
-    adjustInventoryValues: (prev: Accounts, totalDiffValue: number): Accounts => {
-        if (totalDiffValue > 0) {
-            // LOSS (Missing items) -> reduces both inventory asset and equity
             return {
                 ...prev,
-                inventario: prev.inventario - totalDiffValue,
-                patrimonio: (prev.patrimonio || 0) - totalDiffValue
-            };
-        } else {
-            // GAIN (Found items) -> increases both inventory asset and equity
-            const absDiff = Math.abs(totalDiffValue);
-            return {
-                ...prev,
-                inventario: prev.inventario + absDiff,
-                patrimonio: (prev.patrimonio || 0) + absDiff
-            };
-        }
-    },
-
-    // 7. Audit (Missing/Surplus Cash)
-    // Cash account is set to real value; the difference hits equity (loss or gain).
-    // Dr. Pérdida por Ajuste / Cr. Cash  (for a shortfall)
-    // Dr. Cash / Cr. Ganancia por Ajuste (for a surplus)
-    auditCash: (prev: Accounts, systemValue: number, realValue: number, account: 'caja_chica' | 'banco'): Accounts => {
-        const diff = systemValue - realValue; // positive = shortfall (we lost cash)
-        if (diff > 0) {
-            return {
-                ...prev,
-                [account]: prev[account] - diff,
-                patrimonio: (prev.patrimonio || 0) - diff
+                caja_chica: prev.caja_chica + splitAmounts.caja_chica,
+                banco: prev.banco + splitAmounts.banco,
             };
         }
         return {
             ...prev,
-            [account]: prev[account] + Math.abs(diff),
-            patrimonio: (prev.patrimonio || 0) + Math.abs(diff)
+            [method as 'caja_chica' | 'banco']: prev[method as 'caja_chica' | 'banco'] + salePrice,
         };
-    }
+    },
+
+    // 6. Production — pure asset exchange inside inventory; no cash movement.
+    //    reconcile() sees net-zero change to inventory value (ingredients out = output in).
+    production: (prev: Accounts): Accounts => prev,
+
+    // 7. Inventory count adjustment — physical array already updated by caller.
+    //    reconcile() picks up the new inventory value automatically.
+    adjustInventoryValues: (prev: Accounts, _totalDiffValue?: number): Accounts => prev,
+
+    // 8. Cash audit — sets cash account to the verified real value.
+    //    patrimonio adjusts automatically via reconcile().
+    auditCash: (
+        prev: Accounts,
+        _systemValue: number,       // kept for API compat
+        realValue: number,
+        account: 'caja_chica' | 'banco'
+    ): Accounts => ({
+        ...prev,
+        [account]: realValue,
+        // patrimonio: auto-derived by reconcile()
+    }),
 };

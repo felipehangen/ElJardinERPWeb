@@ -45,7 +45,7 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, data }: any) => {
 // 1. Purchase (Inventario/Activo)
 export const PurchaseModal = ({ isOpen, onClose }: any) => {
     const {
-        accounts, updateAccounts, addTransaction,
+        accounts, updateAccounts, reconcile, addTransaction,
         inventory, addInventoryItem, updateInventoryItem,
         addAssetItem,
         providers, addProvider,
@@ -206,6 +206,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         const targetProvider = providers?.find(p => p.id === (finalProvId || form.provId))?.name || tempProvName;
 
         updateAccounts(() => newAccounts);
+        reconcile(); // derive inventario, activo_fijo, patrimonio from physical arrays
         addTransaction({
             id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount,
             description: `Compra ${tab === 'inventory' ? 'Inventario' : 'Activo'}: ${form.itemName} (x${formatQty(quantity)})`,
@@ -376,7 +377,7 @@ interface QueuedSale {
 // 2. Sale (Venta con Carrito)
 export const SaleModal = ({ isOpen, onClose }: any) => {
     const {
-        accounts, updateAccounts, addTransaction,
+        accounts, updateAccounts, reconcile, addTransaction,
         products, addProduct, getLedgerAccounts
     } = useStore();
 
@@ -467,10 +468,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
         let accState = { ...accounts };
 
         salesQueue.forEach(sale => {
-            let totalCOGS = 0;
-            let isInventoriable = false;
-
-            accState = AccountingActions.registerSale(accState, sale.totalAmount, totalCOGS, isInventoriable, sale.method as any, sale.splitAmounts);
+            accState = AccountingActions.registerSale(accState, sale.totalAmount, sale.method as any, sale.splitAmounts);
             
             const desc = sale.cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ');
 
@@ -480,12 +478,13 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                 date: new Date().toISOString(),
                 amount: sale.totalAmount,
                 description: `Venta: ${desc}`,
-                cogs: totalCOGS,
+                cogs: 0, // periodic model: COGS recognised at physical count, not at sale
                 details: { cart: sale.cart, method: sale.method, splitAmounts: sale.splitAmounts }
             });
         });
 
         updateAccounts(() => accState);
+        reconcile(); // derive patrimonio from updated cash
 
         const freshState = useStore.getState();
         const currLedger = { ...freshState.accounts, ...freshState.getLedgerAccounts() };
@@ -667,7 +666,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 // 3. Expense
 export const ExpenseModal = ({ isOpen, onClose }: any) => {
     const {
-        accounts, updateAccounts, addTransaction,
+        accounts, updateAccounts, reconcile, addTransaction,
         expenseTypes, addExpenseType,
         providers, addProvider, getLedgerAccounts
     } = useStore();
@@ -714,6 +713,7 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
         const prevLedger = { ...accounts, ...getLedgerAccounts() };
         const newAccounts = AccountingActions.payExpense(accounts, amount, form.method as any);
         updateAccounts(() => newAccounts);
+        reconcile(); // derive patrimonio from reduced cash
         addTransaction({
             id: crypto.randomUUID(),
             type: 'EXPENSE',
@@ -809,7 +809,7 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
 export const ProductionModal = ({ isOpen, onClose }: any) => {
     const {
         inventory, updateInventoryItem,
-        addInventoryItem, accounts, addTransaction,
+        addInventoryItem, accounts, reconcile, addTransaction,
         consumeInventoryFIFO, getLedgerAccounts
     } = useStore();
 
@@ -919,7 +919,10 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
             });
         }
 
-        // 3. Accounting
+        // 3. Reconcile — physical inventory changed (ingredients out, output in); net inventario ≈ zero
+        reconcile();
+
+        // 4. Accounting
         const ingText = ingredients.map(i => `${formatQty(parseFloat(i.qty))}x ${i.item.name}`).join(', ');
         addTransaction({
             id: crypto.randomUUID(),
@@ -1099,7 +1102,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
 
 // 5. Inventory Count
 export const InventoryCountModal = ({ isOpen, onClose }: any) => {
-    const { inventory, locations, updateInventoryItem, accounts, updateAccounts, addTransaction, consumeInventoryFIFO } = useStore();
+    const { inventory, locations, updateInventoryItem, accounts, updateAccounts, reconcile, addTransaction, consumeInventoryFIFO } = useStore();
 
     // State: map of itemId -> newStock (string to allow typing)
     const [counts, setCounts] = useState<Record<string, string>>({});
@@ -1204,9 +1207,8 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
             onClose(); return;
         }
 
-        // 2. Accounting Adjustment
-        const newAccounts = AccountingActions.adjustInventoryValues(accounts, exactTotalDiff);
-        updateAccounts(() => newAccounts);
+        // 2. Reconcile — physical inventory just changed; inventario/patrimonio auto-derive
+        reconcile();
 
         // 3. Log
         addTransaction({
@@ -1317,7 +1319,7 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
 
 // 6. Asset Count (Toma de Activos)
 export const AssetCountModal = ({ isOpen, onClose }: any) => {
-    const { assets, batchUpdateAssets, accounts, updateAccounts, addTransaction } = useStore();
+    const { assets, batchUpdateAssets, reconcile, addTransaction } = useStore();
 
     // State
     const [counts, setCounts] = useState<Record<string, string>>({});
@@ -1367,15 +1369,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
         }
 
         batchUpdateAssets(itemUpdates);
-
-        // Accounting Adjustment
-        // diff > 0: system value > real value → LOSS (activo_fijo and patrimonio decrease)
-        // diff < 0: system value < real value → GAIN (activo_fijo and patrimonio increase)
-        const newAccounts = { ...accounts };
-        newAccounts.activo_fijo = (newAccounts.activo_fijo || 0) - diff;
-        newAccounts.patrimonio = (newAccounts.patrimonio || 0) - diff;
-
-        updateAccounts(() => newAccounts);
+        reconcile(); // derive activo_fijo and patrimonio from updated assets array
 
         addTransaction({
             id: crypto.randomUUID(),
@@ -1489,7 +1483,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
 
 // 7. Cash & Bank Adjustment (Ajuste de Caja Chica y Bancos)
 export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
-    const { accounts, updateAccounts, addTransaction } = useStore();
+    const { accounts, updateAccounts, reconcile, addTransaction } = useStore();
 
     // State
     const [counts, setCounts] = useState<Record<string, string>>({
@@ -1538,6 +1532,7 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
         }
 
         updateAccounts(() => newAccounts);
+        reconcile(); // derive patrimonio from updated cash
 
         onClose();
     };

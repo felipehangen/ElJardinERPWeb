@@ -52,6 +52,11 @@ interface StoreActions {
     simulateInventoryFIFO: (itemId: string, qty: number) => number;
     revertTransaction: (txId: string) => void;
 
+    // Derived-field reconciliation
+    // Call after any operation that changes inventory[], assets[], banco, or caja_chica.
+    // Recomputes inventario, activo_fijo, and patrimonio so they are always consistent.
+    reconcile: () => void;
+
     // System
     importState: (state: AppState) => void;
     reset: () => void;
@@ -66,6 +71,18 @@ export const useStore = create<AppState & StoreActions>()(
                 let updated = typeof updater === 'function' ? updater(get().accounts) : updater;
                 updated._isLedger = true;
                 set({ accounts: updated });
+            },
+
+            // Recompute the three derived balance-sheet fields from their physical sources.
+            // inventario  = Σ item.stock × item.cost   (inventory array is ground truth)
+            // activo_fijo = Σ asset.value               (assets array is ground truth)
+            // patrimonio  = banco + caja_chica + inventario + activo_fijo  (equation)
+            reconcile: () => {
+                const s = get();
+                const inventario = Number(s.inventory.reduce((sum, i) => sum + i.stock * i.cost, 0).toFixed(2));
+                const activo_fijo = Number(s.assets.reduce((sum, a) => sum + a.value, 0).toFixed(2));
+                const patrimonio = Number(((s.accounts.banco || 0) + (s.accounts.caja_chica || 0) + inventario + activo_fijo).toFixed(2));
+                set({ accounts: { ...s.accounts, inventario, activo_fijo, patrimonio, _isLedger: true } });
             },
 
             addInventoryItem: (item) => set((state) => ({ inventory: [...state.inventory, item] })),
@@ -309,10 +326,12 @@ export const useStore = create<AppState & StoreActions>()(
 
                 if (!tx || tx.status === 'VOIDED' || tx.type === 'INITIALIZATION') return;
 
-                // 1. Revert Accounts (Liquidity only, Ledger handles Income Statement)
+                // Only banco and caja_chica are manually reversed here.
+                // inventario, activo_fijo, and patrimonio are DERIVED — they are
+                // recomputed at the end via reconcile() inside the final set().
                 let newAccounts = { ...state.accounts };
 
-                // Helper to reverse liquid cash movement
+                // ── Cash reversal helper ────────────────────────────────────────────
                 const reverseCash = (method: string, amount: number, isInflowToCompany: boolean, splitAmounts?: {caja_chica: number, banco: number}) => {
                     if (method === 'split' && splitAmounts) {
                         if (isInflowToCompany) {
@@ -326,202 +345,155 @@ export const useStore = create<AppState & StoreActions>()(
                     }
                     if (!method) return;
                     const accName = method as 'caja_chica' | 'banco';
-                    if (isInflowToCompany) {
-                        newAccounts[accName] -= amount; // We got money, now taking it back
-                    } else {
-                        newAccounts[accName] += amount; // We spent money, now getting it back
-                    }
+                    newAccounts[accName] += isInflowToCompany ? -amount : amount;
                 };
 
-                // Helper to re-inject stock into FIFO
+                // ── Physical inventory FIFO restoration ─────────────────────────────
+                // Adds a refund batch so FIFO order is preserved.
+                // Does NOT touch newAccounts.inventario — reconcile() handles that.
                 let updatedInventory = [...state.inventory];
-                let assetIdToRemove: string | undefined;       // Populated when voiding a PURCHASE/asset
-                let assetItemsToRestore: any[] | undefined;    // Populated when voiding an asset count adjustment
+                let assetIdToRemove: string | undefined;
+                let assetItemsToRestore: any[] | undefined;
+
                 const reverseInventoryFIFO = (itemId: string, qty: number, exactCostVal: number) => {
                     const idx = updatedInventory.findIndex(i => i.id === itemId);
                     if (idx === -1) return;
-
                     const item = updatedInventory[idx];
                     const refundCostPerUnit = exactCostVal > 0 ? exactCostVal / qty : item.cost;
-
                     const refundBatch = {
                         id: 'refund-' + crypto.randomUUID(),
-                        date: tx.date, // Put it back at the exact point in time it left
+                        date: tx.date,
                         cost: refundCostPerUnit,
                         stock: qty
                     };
-
-                    const newBatches = [...(item.batches || []), refundBatch].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                    const newBatches = [...(item.batches || []), refundBatch]
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                     const newTotalStock = item.stock + qty;
                     const newTotalValue = (item.stock * item.cost) + exactCostVal;
-
                     updatedInventory[idx] = {
                         ...item,
                         stock: newTotalStock,
                         cost: newTotalValue / newTotalStock,
                         batches: newBatches
                     };
-
-                    // Re-inject the financial value back into the Asset account accumulator
-                    newAccounts.inventario = (newAccounts.inventario || 0) + exactCostVal;
+                    // inventario is reconciled at the end — no manual update here
                 };
 
+                // ── Per-type reversal logic ─────────────────────────────────────────
                 switch (tx.type) {
                     case 'SALE':
                         reverseCash(tx.details?.method, tx.amount, true, tx.details?.splitAmounts);
-                        if (tx.details?.cart) {
-                            // Reverse FIFO for each item sold
-                            // To ensure perfect accounting equation symmetry, the exact COGS that left the balance sheet MUST return.
-                            let reInjectedValue = 0;
-                            const totalQty = tx.details.cart.reduce((sum: number, c: any) => sum + c.qty, 0);
-
+                        if (tx.details?.cart && (tx.cogs || 0) > 0) {
+                            const totalQty = tx.details.cart.reduce((s: number, c: any) => s + c.qty, 0);
                             tx.details.cart.forEach((cartItem: any) => {
-                                // Distribute the original total cogs across items based on quantity proportion
                                 const proportion = cartItem.qty / totalQty;
-                                const itemCogsShare = (tx.cogs || 0) * proportion;
-                                reInjectedValue += itemCogsShare;
-                                reverseInventoryFIFO(cartItem.id, cartItem.qty, itemCogsShare);
+                                reverseInventoryFIFO(cartItem.id, cartItem.qty, (tx.cogs || 0) * proportion);
                             });
                         }
-                        // Reverse net profit: Dr. Patrimonio / Cr. Utilidad (removes the profit that was recorded)
-                        newAccounts.patrimonio = (newAccounts.patrimonio || 0) - (tx.amount - (tx.cogs || 0));
+                        // patrimonio reconciled automatically (cash up, inventory up → patrimonio recalculated)
                         break;
+
                     case 'PURCHASE':
                         reverseCash(tx.details?.method, tx.amount, false);
                         if (tx.details?.type === 'inventory') {
-                            // Find the item by ID (preferred) or fall back to name for legacy txs
                             const relatedItem = updatedInventory.find(i =>
                                 tx.details.itemId ? i.id === tx.details.itemId : i.name === tx.details.itemName
                             );
                             if (relatedItem) {
                                 let newBatches = [...(relatedItem.batches || [])];
-
                                 if (tx.details.batchId) {
-                                    // Precise removal: drop the exact batch added by this purchase
                                     newBatches = newBatches.filter(b => b.id !== tx.details.batchId);
                                 } else {
-                                    // Legacy fallback: peel qty from the newest batch (LIFO — purchase reversal)
+                                    // Legacy fallback: peel qty from newest batch (LIFO)
                                     let qtyToRemove = tx.details.quantity;
                                     const sorted = [...newBatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                                     newBatches = [];
                                     for (const batch of sorted) {
                                         if (qtyToRemove <= 0) { newBatches.push(batch); continue; }
-                                        if (batch.stock <= qtyToRemove) {
-                                            qtyToRemove -= batch.stock; // consume whole batch
-                                        } else {
-                                            newBatches.push({ ...batch, stock: batch.stock - qtyToRemove });
-                                            qtyToRemove = 0;
-                                        }
+                                        if (batch.stock <= qtyToRemove) { qtyToRemove -= batch.stock; }
+                                        else { newBatches.push({ ...batch, stock: batch.stock - qtyToRemove }); qtyToRemove = 0; }
                                     }
                                 }
-
-                                const newTotalStock = newBatches.reduce((sum, b) => sum + b.stock, 0);
-                                const newTotalValue = newBatches.reduce((sum, b) => sum + b.stock * b.cost, 0);
+                                const newTotalStock = newBatches.reduce((s, b) => s + b.stock, 0);
+                                const newTotalValue = newBatches.reduce((s, b) => s + b.stock * b.cost, 0);
                                 const newAvgCost = newTotalStock > 0 ? newTotalValue / newTotalStock : relatedItem.cost;
-
                                 updatedInventory = updatedInventory.map(i =>
                                     (tx.details.itemId ? i.id === tx.details.itemId : i.name === tx.details.itemName)
                                         ? { ...i, stock: newTotalStock, cost: newAvgCost, batches: newBatches }
                                         : i
                                 );
-                                newAccounts.inventario -= tx.amount;
+                                // inventario reconciled from updated physical array
                             }
                         } else if (tx.details?.type === 'asset') {
-                            newAccounts.activo_fijo -= tx.amount;
-                            // Remove the asset from the catalog if we recorded its ID at purchase time
-                            if (tx.details?.assetId) {
-                                assetIdToRemove = tx.details.assetId;
-                            }
+                            if (tx.details?.assetId) assetIdToRemove = tx.details.assetId;
+                            // activo_fijo reconciled after asset is removed from catalog
                         }
                         break;
+
                     case 'EXPENSE':
                         reverseCash(tx.details?.method, tx.amount, false);
-                        // Reverse equity hit: Dr. Cash / Cr. Patrimonio (restores equity reduced when expense was paid)
-                        newAccounts.patrimonio = (newAccounts.patrimonio || 0) + tx.amount;
+                        // patrimonio reconciled automatically (cash up → patrimonio up)
                         break;
+
                     case 'PRODUCTION': {
-                        // Use tx.amount as the canonical FIFO cost recorded at production time
-                        const originalTotalCost = tx.amount;
-                        // Reverse Output — remove the produced batch at its original cost
+                        // Remove output stock from physical inventory
                         if (tx.details?.outputName) {
                             updatedInventory = updatedInventory.map(i =>
                                 (tx.details.outputId ? i.id === tx.details.outputId : i.name === tx.details.outputName)
                                     ? { ...i, stock: i.stock - tx.details.outputQty }
                                     : i
                             );
-                            newAccounts.inventario -= originalTotalCost;
                         }
-                        // Refund Ingredients — scale proportionally so total refund == tx.amount exactly
+                        // Restore ingredient stock via FIFO refund batches
                         if (tx.details?.ingredients) {
-                            const estimatedTotal = tx.details.ingredients.reduce((sum: number, ing: any) =>
-                                sum + parseFloat(ing.qty) * ing.item.cost, 0
+                            const estimatedTotal = tx.details.ingredients.reduce((s: number, ing: any) =>
+                                s + parseFloat(ing.qty) * ing.item.cost, 0
                             );
                             tx.details.ingredients.forEach((ing: any) => {
                                 const proportion = estimatedTotal > 0
                                     ? (parseFloat(ing.qty) * ing.item.cost) / estimatedTotal
                                     : 1 / tx.details.ingredients.length;
-                                reverseInventoryFIFO(ing.item.id, parseFloat(ing.qty), originalTotalCost * proportion);
+                                reverseInventoryFIFO(ing.item.id, parseFloat(ing.qty), tx.amount * proportion);
                             });
                         }
+                        // inventario reconciled from the net physical change (should be ~zero)
                         break;
                     }
+
                     case 'ADJUSTMENT': {
-                        // Cash adjustments store their account under details.method (not details.account)
                         const cashAccount = tx.details?.account || tx.details?.method;
                         if (cashAccount === 'caja_chica' || cashAccount === 'banco') {
-                            // Use stored numeric diff (reliable) instead of parsing the description string
-                            // diffCaja/diffBanco > 0 means system had more than reality → cash was reduced (loss)
                             const numericDiff = cashAccount === 'caja_chica'
                                 ? (tx.details?.diffCaja ?? NaN)
                                 : (tx.details?.diffBanco ?? NaN);
                             const isLoss = !isNaN(numericDiff)
-                                ? numericDiff > 0                   // precise: use stored value
-                                : tx.description.includes('-');     // legacy fallback: parse description
+                                ? numericDiff > 0
+                                : tx.description.includes('-');
                             reverseCash(cashAccount, tx.amount, !isLoss);
-                            // Reverse the patrimonio effect of the original auditCash call
-                            if (isLoss) {
-                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) + tx.amount;
-                            } else {
-                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) - tx.amount;
-                            }
+                            // patrimonio reconciled from cash change
                         }
                         if (tx.details?.itemsAdjusted !== undefined) {
-                            // Reversing a physical inventory shrinkage: restore the lost value to patrimonio.
-                            // Physical stock restoration is omitted to avoid FIFO batch complexity.
-                            const lostValue = tx.cogs ?? 0;
-                            if (lostValue !== 0) {
-                                // lostValue > 0: was a LOSS → restore inventario and patrimonio
-                                // lostValue < 0: was a GAIN → reduce inventario and patrimonio
-                                newAccounts.inventario = (newAccounts.inventario || 0) + lostValue;
-                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) + lostValue;
-                            }
+                            // Physical stock restoration is omitted (FIFO complexity).
+                            // inventario and patrimonio reconcile from the physical array
+                            // which retains the post-adjustment stock levels.
+                            // Net effect on balance sheet is zero after void.
                         }
                         if (tx.details?.diff !== undefined && tx.details?.itemsAdjusted === undefined) {
-                            // Reversing an asset count adjustment (identified by structured details, not description string).
-                            // tx.cogs = diff where diff > 0 = LOSS, diff < 0 = GAIN.
-                            // Original: activo_fijo -= diff, patrimonio -= diff. Reversal adds it back.
-                            const assetDiff = tx.cogs ?? 0;
-                            if (assetDiff !== 0) {
-                                newAccounts.activo_fijo = (newAccounts.activo_fijo || 0) + assetDiff;
-                                newAccounts.patrimonio = (newAccounts.patrimonio || 0) + assetDiff;
-                            }
-                            // Restore individual asset catalog items to their pre-adjustment system values
+                            // Asset count void: restore catalog items to pre-adjustment values
                             if (tx.details?.itemDetails?.length > 0) {
                                 assetItemsToRestore = tx.details.itemDetails.map((d: any) => ({
                                     id: d.id,
                                     value: d.sysVal,
-                                    // Quantity is not stored in itemDetails; preserve current quantity
                                 }));
                             }
+                            // activo_fijo and patrimonio reconciled after assets are restored
                         }
                         break;
                     }
                 }
 
-                // 2. Mark Original as Voided
+                // ── Mark voided + create audit contra-transaction ───────────────────
                 const voidedTx = { ...tx, status: 'VOIDED' as const };
-
-                // 3. Create Contra-Transaction for Audit Trail
                 const contraId = crypto.randomUUID();
                 const contraTx = {
                     id: contraId,
@@ -531,23 +503,27 @@ export const useStore = create<AppState & StoreActions>()(
                     description: `[ANULACIÓN] Reversa de Transacción: ${tx.id.split('-')[0]}`,
                     voidingTxId: tx.id
                 };
-
                 voidedTx.voidingTxId = contraId;
 
+                // ── Commit: physical changes + cash + reconcile derived fields ───────
                 set(state => {
                     let updatedAssets = state.assets;
                     if (assetIdToRemove) {
-                        // Voiding a PURCHASE/asset: remove the asset from the catalog
                         updatedAssets = updatedAssets.filter(a => a.id !== assetIdToRemove);
                     } else if (assetItemsToRestore) {
-                        // Voiding an asset count: restore each asset to its pre-adjustment system value
                         const restoreMap = new Map(assetItemsToRestore.map((r: any) => [r.id, r.value]));
                         updatedAssets = updatedAssets.map(a =>
                             restoreMap.has(a.id) ? { ...a, value: restoreMap.get(a.id) } : a
                         );
                     }
+
+                    // Reconcile: derive inventario, activo_fijo, patrimonio from physical arrays
+                    const inventario = Number(updatedInventory.reduce((s, i) => s + i.stock * i.cost, 0).toFixed(2));
+                    const activo_fijo = Number(updatedAssets.reduce((s, a) => s + a.value, 0).toFixed(2));
+                    const patrimonio = Number(((newAccounts.banco || 0) + (newAccounts.caja_chica || 0) + inventario + activo_fijo).toFixed(2));
+
                     return {
-                        accounts: { ...newAccounts, _isLedger: true },
+                        accounts: { ...newAccounts, inventario, activo_fijo, patrimonio, _isLedger: true },
                         inventory: updatedInventory,
                         assets: updatedAssets,
                         transactions: [contraTx, ...state.transactions.map(t => t.id === txId ? voidedTx : t)]
@@ -561,7 +537,7 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: 'jardin-erp-storage-v4',
             storage: createJSONStorage(() => cloudStorage),
-            version: 12, // v12 = full clean reset; production launch with clean slate
+            version: 13, // v13 = refactor: inventario/activo_fijo/patrimonio are derived fields
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
 
@@ -751,6 +727,15 @@ export const useStore = create<AppState & StoreActions>()(
                 // Old data is incompatible with the new batchId tracking, so we start fresh.
                 if (version < 12) {
                     return { ...INITIAL_STATE } as any;
+                }
+
+                // v12 -> v13: inventario, activo_fijo, patrimonio are now derived fields.
+                // Reconcile them from physical arrays so any stored drift is corrected on load.
+                if (version < 13 && state.accounts && state.inventory && state.assets) {
+                    const inventario = Number((state.inventory as any[]).reduce((s: number, i: any) => s + (i.stock || 0) * (i.cost || 0), 0).toFixed(2));
+                    const activo_fijo = Number((state.assets as any[]).reduce((s: number, a: any) => s + (a.value || 0), 0).toFixed(2));
+                    const patrimonio = Number(((state.accounts.banco || 0) + (state.accounts.caja_chica || 0) + inventario + activo_fijo).toFixed(2));
+                    state.accounts = { ...state.accounts, inventario, activo_fijo, patrimonio };
                 }
 
                 return state as AppState & StoreActions;
