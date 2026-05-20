@@ -7,7 +7,7 @@ import type { InventoryItem, AssetItem, Location, Provider } from '../types';
 
 export const Onboarding = () => {
     const {
-        updateAccounts, setInitialized,
+        updateAccounts, reconcile, setInitialized,
         addInventoryItem, addAssetItem,
         addLocation, addProvider, addTransaction
     } = useStore();
@@ -79,7 +79,8 @@ export const Onboarding = () => {
 
         const initialAccounts = AccountingActions.initializeWithEquity(cashVal, bankVal, totalInvValue, totalAssetValue);
         updateAccounts(() => initialAccounts);
-        
+        reconcile(); // derive inventario, activo_fijo, patrimonio from the items added above
+
         addTransaction({
             id: crypto.randomUUID(),
             type: 'INITIALIZATION',

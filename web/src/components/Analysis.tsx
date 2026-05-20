@@ -71,13 +71,44 @@ export const Analysis = () => {
         if (statementFilter === 'Ventas') return validTxs.filter(t => t.type === 'SALE');
         if (statementFilter === 'Gastos') return validTxs.filter(t => t.type === 'EXPENSE');
         if (statementFilter === 'Costos') {
-            return validTxs.filter(t => (t.type === 'SALE' && t.cogs && t.cogs > 0) || (t.type === 'ADJUSTMENT' && !t.voidingTxId && (t.description.toLowerCase().includes('inventario') || t.description.toLowerCase().includes('físico') || t.description.toLowerCase().includes('activos'))));
+            // Inventory physical counts (details.itemsAdjusted present) → COGS
+            // Sales with COGS recorded → also part of cost picture
+            return validTxs.filter(t =>
+                (t.type === 'SALE' && t.cogs && t.cogs > 0) ||
+                (t.type === 'ADJUSTMENT' && !t.voidingTxId && t.details?.itemsAdjusted !== undefined)
+            );
         }
         if (statementFilter === 'Otros Ingresos') {
-             return validTxs.filter(t => t.type === 'ADJUSTMENT' && !t.voidingTxId && !t.description.toLowerCase().includes('inventario') && !t.description.toLowerCase().includes('físico') && !t.description.toLowerCase().includes('activos') && t.description.includes('+'));
+            // Cash gain adjustments (diffCaja < 0 or diffBanco < 0) or asset write-ups (diff < 0)
+            return validTxs.filter(t => {
+                if (t.type !== 'ADJUSTMENT' || t.voidingTxId) return false;
+                const cashMethod = t.details?.method === 'caja_chica' || t.details?.method === 'banco';
+                if (cashMethod) {
+                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
+                    return diff !== undefined ? diff < 0 : t.description.includes('+');
+                }
+                // Asset count gain: details.diff < 0 (real > system)
+                if (t.details?.diff !== undefined && t.details?.itemsAdjusted === undefined) {
+                    return (t.details.diff as number) < 0;
+                }
+                return false;
+            });
         }
         if (statementFilter === 'Otros Gastos') {
-             return validTxs.filter(t => t.type === 'ADJUSTMENT' && !t.voidingTxId && !t.description.toLowerCase().includes('inventario') && !t.description.toLowerCase().includes('físico') && !t.description.toLowerCase().includes('activos') && !t.description.includes('+'));
+            // Cash loss adjustments (diffCaja > 0 or diffBanco > 0) or asset write-downs (diff > 0)
+            return validTxs.filter(t => {
+                if (t.type !== 'ADJUSTMENT' || t.voidingTxId) return false;
+                const cashMethod = t.details?.method === 'caja_chica' || t.details?.method === 'banco';
+                if (cashMethod) {
+                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
+                    return diff !== undefined ? diff > 0 : !t.description.includes('+');
+                }
+                // Asset count loss: details.diff > 0 (system > real)
+                if (t.details?.diff !== undefined && t.details?.itemsAdjusted === undefined) {
+                    return (t.details.diff as number) > 0;
+                }
+                return false;
+            });
         }
         return [];
     }, [statementFilter, transactions]);

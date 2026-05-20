@@ -9,7 +9,7 @@ import { getAccountingDocumentation } from '../lib/accountingDocs';
 import packageJson from '../../package.json';
 
 export const Settings = () => {
-    const { importState, reset, updateAccounts, addTransaction } = useStore();
+    const { importState, reset, updateAccounts, reconcile, addTransaction } = useStore();
     const fileRef = useRef<HTMLInputElement>(null);
 
     const handleBackup = () => {
@@ -122,8 +122,9 @@ export const Settings = () => {
         updateAccounts(prev => ({
             ...prev,
             [capitalAccount]: prev[capitalAccount] + amount,
-            patrimonio: prev.patrimonio + amount
+            // patrimonio derived by reconcile() — do not set manually
         }));
+        reconcile(); // recomputes inventario, activo_fijo, patrimonio from physical arrays
 
         addTransaction({
             id: crypto.randomUUID(),
