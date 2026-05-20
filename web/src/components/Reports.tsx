@@ -401,7 +401,7 @@ export const Reports = () => {
             {/* Cash & Banks Tab */}
             {tab === 'cash' && (
                 <div className="grid md:grid-cols-2 gap-6">
-                    <Card className="bg-gradient-to-br from- emerald-50 to-white border-l-4 border-l-emerald-500">
+                    <Card className="bg-gradient-to-br from-emerald-50 to-white border-l-4 border-l-emerald-500">
                         <div className="flex items-center gap-4 mb-2">
                             <div className="p-3 bg-emerald-100 rounded-full text-emerald-600"><Wallet /></div>
                             <div>
