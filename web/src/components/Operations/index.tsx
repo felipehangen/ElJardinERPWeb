@@ -1485,14 +1485,28 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
 export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
     const { accounts, updateAccounts, reconcile, addTransaction } = useStore();
 
-    // State
+    // Counts represent what the user physically counts.
+    // Re-initialised every time the modal opens so the system baseline is always
+    // the CURRENT store value — never a stale mount-time snapshot.
     const [counts, setCounts] = useState<Record<string, string>>({
         caja_chica: Math.round(accounts.caja_chica || 0).toString(),
         banco: Math.round(accounts.banco || 0).toString()
     });
 
+    useEffect(() => {
+        if (isOpen) {
+            const fresh = useStore.getState().accounts;
+            setCounts({
+                caja_chica: Math.round(fresh.caja_chica || 0).toString(),
+                banco: Math.round(fresh.banco || 0).toString()
+            });
+        }
+    }, [isOpen]);
+
     const getDiffValue = (account: 'caja_chica' | 'banco') => {
-        const sysVal = accounts[account];
+        // Round sysVal to match the rounded counts so floating-point inventory
+        // costs never produce spurious sub-₡1 adjustments.
+        const sysVal = Math.round(accounts[account] || 0);
         const realVal = parseFloat(counts[account] || '0');
         // Positive diff means we lost money (System > Real)
         return sysVal - realVal;
@@ -1503,31 +1517,40 @@ export const CashAdjustmentModal = ({ isOpen, onClose }: any) => {
     const totalDiff = diffCaja + diffBanco;
 
     const handleSubmit = () => {
-        if (totalDiff === 0) {
+        // Re-read a fresh snapshot at submit time to avoid any drift that
+        // occurred while the modal was open (Bug: stale closure on accounts).
+        const freshAccounts = useStore.getState().accounts;
+        const freshDiffCaja = Math.round(freshAccounts.caja_chica || 0) - parseFloat(counts.caja_chica || '0');
+        const freshDiffBanco = Math.round(freshAccounts.banco || 0) - parseFloat(counts.banco || '0');
+
+        if (freshDiffCaja === 0 && freshDiffBanco === 0) {
             onClose(); return;
         }
 
-        let newAccounts = { ...accounts };
-        if (diffCaja !== 0) {
-            newAccounts = AccountingActions.auditCash(newAccounts, accounts.caja_chica, parseFloat(counts.caja_chica || '0'), 'caja_chica');
+        let newAccounts = { ...freshAccounts };
+        if (freshDiffCaja !== 0) {
+            const realVal = parseFloat(counts.caja_chica || '0');
+            newAccounts = AccountingActions.auditCash(newAccounts, freshAccounts.caja_chica, realVal, 'caja_chica');
             addTransaction({
                 id: crypto.randomUUID(),
                 type: 'ADJUSTMENT',
                 date: new Date().toISOString(),
-                amount: Math.abs(diffCaja),
-                description: `Ajuste Caja Chica (Dif: ${diffCaja > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffCaja))})`,
-                details: { method: 'caja_chica', diffCaja }
+                amount: Math.abs(freshDiffCaja),
+                description: `Ajuste Caja Chica (Dif: ${freshDiffCaja > 0 ? '-' : '+'}₡${formatMoney(Math.abs(freshDiffCaja))})`,
+                // sysVal stored for exact reversal: void removes exactly (realVal − sysVal)
+                details: { method: 'caja_chica', diffCaja: freshDiffCaja, sysVal: freshAccounts.caja_chica, realVal }
             });
         }
-        if (diffBanco !== 0) {
-            newAccounts = AccountingActions.auditCash(newAccounts, accounts.banco, parseFloat(counts.banco || '0'), 'banco');
+        if (freshDiffBanco !== 0) {
+            const realVal = parseFloat(counts.banco || '0');
+            newAccounts = AccountingActions.auditCash(newAccounts, freshAccounts.banco, realVal, 'banco');
             addTransaction({
                 id: crypto.randomUUID(),
                 type: 'ADJUSTMENT',
                 date: new Date().toISOString(),
-                amount: Math.abs(diffBanco),
-                description: `Ajuste Bancos (Dif: ${diffBanco > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diffBanco))})`,
-                details: { method: 'banco', diffBanco }
+                amount: Math.abs(freshDiffBanco),
+                description: `Ajuste Bancos (Dif: ${freshDiffBanco > 0 ? '-' : '+'}₡${formatMoney(Math.abs(freshDiffBanco))})`,
+                details: { method: 'banco', diffBanco: freshDiffBanco, sysVal: freshAccounts.banco, realVal }
             });
         }
 

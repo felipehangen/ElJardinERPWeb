@@ -335,6 +335,8 @@ export const useStore = create<AppState & StoreActions>()(
                 const tx = state.transactions.find(t => t.id === txId);
 
                 if (!tx || tx.status === 'VOIDED' || tx.type === 'INITIALIZATION') return;
+                // Prevent voiding a contra-entry — reversal transactions must never be reversed.
+                if (tx.voidingTxId) return;
 
                 // Only banco and caja_chica are manually reversed here.
                 // inventario, activo_fijo, and patrimonio are DERIVED — they are
@@ -481,13 +483,22 @@ export const useStore = create<AppState & StoreActions>()(
                     case 'ADJUSTMENT': {
                         const cashAccount = tx.details?.account || tx.details?.method;
                         if (cashAccount === 'caja_chica' || cashAccount === 'banco') {
-                            const numericDiff = cashAccount === 'caja_chica'
-                                ? (tx.details?.diffCaja ?? NaN)
-                                : (tx.details?.diffBanco ?? NaN);
-                            const isLoss = !isNaN(numericDiff)
-                                ? numericDiff > 0
-                                : tx.description.includes('-');
-                            reverseCash(cashAccount, tx.amount, !isLoss);
+                            if (tx.details?.sysVal !== undefined) {
+                                // Exact restore: new transactions used to store sysVal at record time.
+                                // The void removes exactly (realVal − sysVal) regardless of what
+                                // happened to the account in between — no residual drift possible.
+                                const exactDiff = (tx.details.realVal ?? 0) - tx.details.sysVal;
+                                newAccounts[cashAccount as 'caja_chica' | 'banco'] -= exactDiff;
+                            } else {
+                                // Legacy path (transactions without sysVal): relative ±amount.
+                                const numericDiff = cashAccount === 'caja_chica'
+                                    ? (tx.details?.diffCaja ?? NaN)
+                                    : (tx.details?.diffBanco ?? NaN);
+                                const isLoss = !isNaN(numericDiff)
+                                    ? numericDiff > 0
+                                    : tx.description.includes('-');
+                                reverseCash(cashAccount, tx.amount, !isLoss);
+                            }
                             // patrimonio reconciled from cash change
                         }
                         if (tx.details?.itemsAdjusted !== undefined) {
