@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { Button, Input, Modal, Combobox, cn, formatMoney, formatQty, normalizeName } from '../ui';
 import { Trash2 } from 'lucide-react';
