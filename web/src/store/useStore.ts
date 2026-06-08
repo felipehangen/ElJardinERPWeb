@@ -279,6 +279,21 @@ export const useStore = create<AppState & StoreActions>()(
                 // Sort oldest first
                 batches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+                // Normalize phantom stock: if item.stock > sum(batches), the gap represents
+                // units that entered inventory without a purchase record (e.g. opening stock
+                // entered manually or data inconsistency). Value them at the current average
+                // cost and append AFTER real batches so FIFO still drains oldest purchases
+                // first. This ensures COGS and the inventory value change always match.
+                const batchTotal = batches.reduce((sum, b) => sum + b.stock, 0);
+                if (batchTotal < item.stock) {
+                    batches.push({
+                        id: 'phantom-' + crypto.randomUUID(),
+                        date: new Date().toISOString(), // newest → consumed last
+                        cost: item.cost,
+                        stock: item.stock - batchTotal,
+                    });
+                }
+
                 let newBatches = [];
                 for (const batch of batches) {
                     if (remainingQty <= 0) {
@@ -301,14 +316,13 @@ export const useStore = create<AppState & StoreActions>()(
                     }
                 }
 
-                // Guard: consuming more than available stock is a calling-code bug.
-                // Log a warning and clamp — do NOT charge phantom cost for units that
-                // don't exist, as that would silently corrupt COGS calculations.
+                // This should never fire now that phantom stock is normalized above.
+                // Kept as a last-resort guard against truly unexpected calling code.
                 if (remainingQty > 0) {
                     console.warn(
                         `consumeInventoryFIFO: requested ${qty} units of "${item.name}" ` +
-                        `but only ${qty - remainingQty} were available. ` +
-                        `${remainingQty} phantom unit(s) clamped — check calling code.`
+                        `but only ${qty - remainingQty} were available even after phantom ` +
+                        `normalization. ${remainingQty} unit(s) clamped.`
                     );
                 }
 
