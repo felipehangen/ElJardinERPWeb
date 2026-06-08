@@ -12,6 +12,7 @@ import { Transactions } from './components/Transactions';
 import { PurchaseModal, SaleModal, ExpenseModal, ProductionModal, InventoryCountModal, AssetCountModal, CashAdjustmentModal } from './components/Operations';
 import { backupManager } from './lib/backup';
 import { getAccountingDocumentation } from './lib/accountingDocs';
+import { checkForUpdate, applyUpdate } from './lib/versionCheck';
 
 export default function App() {
   const initialized = useStore((state) => state.initialized);
@@ -22,11 +23,34 @@ export default function App() {
   const [modal, setModal] = useState<string | null>(null);
   const [backupToast, setBackupToast] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
 
   useEffect(() => {
     const unsub = useStore.persist.onFinishHydration(() => setIsHydrated(true));
     setIsHydrated(useStore.persist.hasHydrated());
     return unsub;
+  }, []);
+
+  // ── Version check ────────────────────────────────────────────────────────
+  // Checks on startup, on tab-focus, and every 5 minutes. When a new deploy
+  // is detected, shows a non-intrusive banner so the user can refresh safely.
+  useEffect(() => {
+    const doCheck = async () => {
+      if (await checkForUpdate()) setUpdateAvailable(true);
+    };
+
+    doCheck(); // initial check
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') doCheck();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    const timer = setInterval(doCheck, 5 * 60 * 1000); // every 5 min
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -85,6 +109,27 @@ export default function App() {
   }
 
   return (
+    <>
+    {/* ── Update available banner ─────────────────────────────────────────── */}
+    {updateAvailable && (
+      <div className="fixed top-0 inset-x-0 z-[200] flex items-center justify-center gap-3 bg-jardin-primary text-white px-4 py-2.5 shadow-lg text-sm">
+        <span className="text-base">🚀</span>
+        <span className="font-semibold">Nueva versión disponible</span>
+        <button
+          onClick={applyUpdate}
+          className="bg-white text-jardin-primary px-3 py-1 rounded-lg font-bold text-xs hover:bg-gray-100 transition-colors"
+        >
+          Actualizar ahora
+        </button>
+        <button
+          onClick={() => setUpdateAvailable(false)}
+          className="ml-1 text-white/70 hover:text-white transition-colors text-base leading-none"
+          title="Ignorar por ahora"
+        >
+          ✕
+        </button>
+      </div>
+    )}
     <Layout currentTab={tab} onTabChange={setTab}>
       {tab === 'ops' && <Dashboard onOpenModal={setModal} />}
       {tab === 'cats' && <Catalogs />}
@@ -110,5 +155,6 @@ export default function App() {
         </div>
       )}
     </Layout>
+    </>
   );
 }

@@ -31,7 +31,19 @@ jobs:
 
       - name: Build
         working-directory: web
+        env:
+          VITE_APP_VERSION: ${{ github.sha }}
         run: npx vite build --base=/ElJardinERPWeb/
+
+      # Write version.json so the running app can detect new deploys.
+      # The app fetches /ElJardinERPWeb/version.json (cache: no-store) and
+      # compares the SHA with its own embedded VITE_APP_VERSION.
+      - name: Write version.json
+        run: |
+          printf '{"version":"%s","deployedAt":"%s"}\n' \
+            "${{ github.sha }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > web/dist/version.json
 
       - uses: actions/upload-pages-artifact@v3
         with:
