@@ -140,17 +140,51 @@ const renderTransactionDetails = (tx: Transaction) => {
 
         case 'ADJUSTMENT':
             if (tx.details.itemsAdjusted !== undefined) {
+                const itemDetails: any[] = tx.details.itemDetails || [];
                 return (
-                    <div className="bg-white border rounded-xl p-4 mt-4 space-y-2">
-                        <h4 className="font-bold text-gray-800 text-sm mb-2">Toma Física de Inventario</h4>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Items ajustados:</span>
-                            <span className="font-medium">{tx.details.itemsAdjusted}</span>
+                    <div className="bg-white border rounded-xl p-4 mt-4 space-y-3">
+                        <div className="flex justify-between items-center border-b pb-2">
+                            <h4 className="font-bold text-gray-800 text-sm">Toma Física de Inventario</h4>
+                            <span className="text-xs text-gray-400">{tx.details.itemsAdjusted} item(s) ajustado(s)</span>
                         </div>
+
+                        {/* Per-item breakdown */}
+                        {itemDetails.length > 0 ? (
+                            <div className="space-y-1">
+                                {/* Header row */}
+                                <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-xs font-bold text-gray-400 uppercase tracking-wide pb-1 border-b border-gray-100">
+                                    <span>Producto</span>
+                                    <span className="text-center">Sistema → Real</span>
+                                    <span className="text-right">Impacto</span>
+                                </div>
+                                {itemDetails.map((item: any, i: number) => {
+                                    const isLoss = item.financialDiff > 0;
+                                    return (
+                                        <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-x-4 items-center py-1.5 border-b last:border-0 border-gray-50">
+                                            <span className="text-sm text-gray-700 font-medium truncate">{item.name}</span>
+                                            <span className="text-sm text-gray-500 whitespace-nowrap">
+                                                <span className="font-mono">{formatQty(item.sys)}</span>
+                                                <span className="mx-1 text-gray-300">→</span>
+                                                <span className={cn("font-mono font-bold", isLoss ? "text-red-600" : "text-green-600")}>
+                                                    {formatQty(item.real)}
+                                                </span>
+                                            </span>
+                                            <span className={cn("text-sm font-bold text-right whitespace-nowrap", isLoss ? "text-red-600" : "text-green-600")}>
+                                                {isLoss ? '-' : '+'}₡{fmt(Math.abs(item.financialDiff))}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400 italic">Detalle por item no disponible (ajuste antiguo)</p>
+                        )}
+
+                        {/* Total */}
                         {tx.cogs !== undefined && (
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">Diferencia de valor:</span>
-                                <span className={cn("font-bold", tx.cogs > 0 ? "text-red-600" : "text-green-600")}>
+                            <div className="flex justify-between text-sm font-bold pt-1 border-t border-gray-200">
+                                <span className="text-gray-600">Impacto Neto en Inventario</span>
+                                <span className={tx.cogs > 0 ? "text-red-600" : "text-green-600"}>
                                     {tx.cogs > 0 ? '-' : '+'}₡{fmt(Math.abs(tx.cogs))}
                                 </span>
                             </div>
@@ -160,13 +194,28 @@ const renderTransactionDetails = (tx: Transaction) => {
             }
             if (tx.details.method) {
                 const diff = tx.details.method === 'caja_chica' ? tx.details.diffCaja : tx.details.diffBanco;
+                const isLoss = diff > 0;
                 return (
                     <div className="bg-white border rounded-xl p-4 mt-4 space-y-2">
-                        <h4 className="font-bold text-gray-800 text-sm mb-2">Ajuste de {tx.details.method === 'caja_chica' ? 'Caja Chica' : 'Bancos'}</h4>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Diferencia:</span>
-                            <span className={cn("font-bold", diff > 0 ? "text-red-600" : "text-green-600")}>
-                                {diff > 0 ? '-' : '+'}₡{fmt(Math.abs(diff))}
+                        <h4 className="font-bold text-gray-800 text-sm mb-2">
+                            Arqueo de {tx.details.method === 'caja_chica' ? 'Caja Chica' : 'Bancos'}
+                        </h4>
+                        {tx.details.sysVal !== undefined && (
+                            <div className="flex justify-between text-sm border-b pb-2 border-gray-100">
+                                <span className="text-gray-500">Saldo en sistema:</span>
+                                <span className="font-mono text-gray-700">₡{fmt(tx.details.sysVal)}</span>
+                            </div>
+                        )}
+                        {tx.details.realVal !== undefined && (
+                            <div className="flex justify-between text-sm border-b pb-2 border-gray-100">
+                                <span className="text-gray-500">Conteo físico:</span>
+                                <span className="font-mono font-bold text-gray-800">₡{fmt(tx.details.realVal)}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between text-sm font-bold pt-1">
+                            <span className="text-gray-500">Diferencia ({isLoss ? 'Faltante' : 'Sobrante'}):</span>
+                            <span className={isLoss ? "text-red-600" : "text-green-600"}>
+                                {isLoss ? '-' : '+'}₡{fmt(Math.abs(diff))}
                             </span>
                         </div>
                     </div>
