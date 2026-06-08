@@ -31,8 +31,14 @@ export const Reports = () => {
         return total > 0 ? total : accounts.patrimonio;
     }, [transactions, accounts.patrimonio]);
 
-    // Retained earnings = everything that was earned/lost on top of initial capital
-    const resultadosAcumulados = accounts.patrimonio - initialCapital;
+    // Resultados Acumulados = all-time P&L (same formula as Utilidad Neta, no date filter).
+    // Using the ledger that getLedgerAccounts() already computed above (no date filter) keeps
+    // this in sync with the income statement when the period selector covers all transactions.
+    const resultadosAcumulados = (ledger.ventas || 0) - (ledger.costos || 0) - (ledger.gastos || 0) + (ledger.otrosIngresos || 0) - (ledger.otrosGastos || 0);
+
+    // Reconciliation gap: difference between physical asset values and transaction-based equity.
+    // Ideally 0. A non-zero value signals unrecorded transactions or inventory discrepancies.
+    const conciliacion = accounts.patrimonio - (initialCapital + resultadosAcumulados);
 
     // Derived Financial Data (Global using Ledger)
     const totalActivos = ledger.caja_chica + ledger.banco + ledger.inventario + ledger.activo_fijo;
@@ -110,6 +116,7 @@ export const Reports = () => {
             csvContent += `Total Pasivos,0\n`;
             csvContent += `Capital Inicial,${initialCapital}\n`;
             csvContent += `Resultados Acumulados,${resultadosAcumulados}\n`;
+            if (Math.abs(conciliacion) >= 1) csvContent += `Diferencia por Conciliar,${conciliacion}\n`;
             csvContent += `Total Patrimonio,${totalPatrimonio}\n`;
         } else if (tab === 'inventory') {
             filename = "Reporte_Inventario.csv";
@@ -277,6 +284,13 @@ export const Reports = () => {
                                 <div className="font-bold text-emerald-900 uppercase text-xs mb-1">Patrimonio (Lo que vale)</div>
                                 <Row label="Capital Inicial" value={initialCapital} />
                                 <Row label="Resultados Acumulados" value={resultadosAcumulados} color={resultadosAcumulados >= 0 ? 'text-green-600' : 'text-red-500'} />
+                                {Math.abs(conciliacion) >= 1 && (
+                                    <Row
+                                        label="Diferencia por Conciliar ⚠"
+                                        value={conciliacion}
+                                        color="text-amber-600"
+                                    />
+                                )}
                                 <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-black text-gray-800">
                                     <span>Total Patrimonio</span>
                                     <span>₡{fmt(totalPatrimonio)}</span>
