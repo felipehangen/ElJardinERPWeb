@@ -143,7 +143,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
 
         if (amount <= 0 && tab === 'inventory') return; // Extra safety: prevent ₡0 spurious FIFO batches
 
-        const prevLedger = { ...accounts, ...getLedgerAccounts() }; // Capture snapshot
+        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // Capture snapshot (use getState() to avoid stale closure)
         let newAccounts = accounts;
         let purchaseBatchId: string | undefined; // Captured so we can store it in the transaction
         let purchasedAssetId: string | undefined; // Captured when buying an asset
@@ -463,7 +463,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 
     const executeSubmit = () => {
         setIsConfirming(false);
-        const prevLedger = { ...accounts, ...getLedgerAccounts() };
+        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // avoid stale closure
 
         let accState = { ...accounts };
 
@@ -710,7 +710,7 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
         const amount = parseFloat(form.amount || '0');
         if (amount <= 0) return;
 
-        const prevLedger = { ...accounts, ...getLedgerAccounts() };
+        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // avoid stale closure
         const newAccounts = AccountingActions.payExpense(accounts, amount, form.method as any);
         updateAccounts(() => newAccounts);
         reconcile(); // derive patrimonio from reduced cash
@@ -874,7 +874,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
         setIsConfirming(false);
         const exactTotalCost = ingredients.reduce((acc, ing) => acc + consumeInventoryFIFO(ing.item.id, parseFloat(ing.qty || '0')), 0);
 
-        const prevLedger = { ...accounts, ...getLedgerAccounts() };
+        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // avoid stale closure
 
         // 2. Update Output Product
         const newBatch = {
