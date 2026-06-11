@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Search, Info, TrendingUp, TrendingDown, Download, FilterX, FileText } from 'lucide-react';
+import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { Search, Info, TrendingUp, TrendingDown, Download, FilterX, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatMoney, formatQty } from './ui';
 
 const StatementRow = ({ title, value, onClick, selected, type = 'normal' }: any) => {
@@ -53,6 +53,9 @@ export const Analysis = () => {
     // Daily Chart State
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [expandedTx, setExpandedTx] = useState<string | null>(null);
+    const [viewMonth, setViewMonth] = useState(() =>
+        new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }).slice(0, 7)
+    );
 
     // Main Tab State
     const [activeTab, setActiveTab] = useState<'estado' | 'tendencia' | 'top'>('estado');
@@ -245,6 +248,53 @@ export const Analysis = () => {
     }, [transactions]);
 
     const activeTxs = chartData.find(d => d.date === selectedDate)?.txs || [];
+
+    // ── Month navigation helpers ──────────────────────────────────────────
+    const monthDisplayName = useMemo(() => {
+        const [y, m] = viewMonth.split('-').map(Number);
+        return new Date(y, m - 1, 1).toLocaleDateString('es-CR', { month: 'long', year: 'numeric' });
+    }, [viewMonth]);
+
+    const monthChartData = useMemo(() => {
+        const [y, m] = viewMonth.split('-').map(Number);
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const dayMap = new Map<number, { Ventas: number; Egresos: number; Neto: number; txs: any[] }>();
+        chartData
+            .filter(d => d.date.startsWith(viewMonth))
+            .forEach(d => {
+                const day = parseInt(d.date.split('-')[2]);
+                dayMap.set(day, {
+                    Ventas: d.Ingresos || 0,
+                    Egresos: (d.Costos || 0) + (d.Gastos || 0),
+                    Neto: (d.Ingresos || 0) - (d.Costos || 0) - (d.Gastos || 0),
+                    txs: d.txs || [],
+                });
+            });
+        return Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1;
+            const d = dayMap.get(day);
+            return { day, Ventas: d?.Ventas ?? 0, Egresos: d?.Egresos ?? 0, Neto: d?.Neto ?? 0, hasTxs: !!d };
+        });
+    }, [chartData, viewMonth]);
+
+    const monthSummary = useMemo(() =>
+        monthChartData.reduce(
+            (acc, d) => ({ ventas: acc.ventas + d.Ventas, egresos: acc.egresos + d.Egresos, neto: acc.neto + d.Neto }),
+            { ventas: 0, egresos: 0, neto: 0 }
+        ), [monthChartData]);
+
+    const goPrevMonth = () => {
+        const [y, m] = viewMonth.split('-').map(Number);
+        const d = new Date(y, m - 2, 1);
+        setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+        setSelectedDate(null);
+    };
+    const goNextMonth = () => {
+        const [y, m] = viewMonth.split('-').map(Number);
+        const d = new Date(y, m, 1);
+        setViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+        setSelectedDate(null);
+    };
 
     // Helper to render transaction rows
     const renderTxRow = (tx: any) => (
@@ -461,73 +511,206 @@ export const Analysis = () => {
                 </div>
             )}
 
-            {/* Daily Chart Section */}
+            {/* Daily Trend — reimagined with month selector */}
             {activeTab === 'tendencia' && (
-                <div className="animate-in fade-in zoom-in-95 duration-200 space-y-6">
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                        <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                            <TrendingUp className="text-jardin-primary" />
-                            Tendencia de Movimientos Diarios
-                        </h2>
-                        
-                        {chartData.length === 0 ? (
-                            <div className="text-center py-12 text-gray-400">
-                                No hay suficientes datos transaccionales para mostrar la gráfica.
+                <div className="animate-in fade-in zoom-in-95 duration-200 space-y-4">
+
+                    {/* Main chart card */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+
+                        {/* Month navigator */}
+                        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+                            <button
+                                onClick={goPrevMonth}
+                                className="p-2.5 rounded-2xl hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-400 hover:text-gray-700"
+                                aria-label="Mes anterior"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <div className="text-center select-none">
+                                <h2 className="text-2xl font-extrabold text-gray-900 capitalize tracking-tight">{monthDisplayName}</h2>
+                                <p className="text-[10px] text-gray-400 mt-0.5 font-semibold tracking-[0.1em] uppercase">Tendencia diaria de ingresos</p>
                             </div>
-                        ) : (
-                            <div className="h-[400px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart
-                                        data={chartData}
-                                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                                        onClick={(data: any) => {
-                                            if (data && data.activeLabel) {
-                                                setSelectedDate(data.activeLabel);
-                                                // Scroll to details gently
-                                                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                                            }
-                                        }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                        <XAxis dataKey="date" tick={{ fill: '#6B7280' }} tickMargin={10} />
-                                        <YAxis tickFormatter={(val) => `₡${formatMoney(val)}`} tick={{ fill: '#6B7280' }} />
-                                        <Tooltip 
-                                            formatter={(value: any, name: any) => [`₡${formatMoney(Number(value))}`, name]}
-                                            cursor={{fill: '#F3F4F6'}}
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-                                        />
-                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                        <Bar dataKey="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} cursor="pointer" />
-                                        <Bar dataKey="Costos" fill="#f59e0b" radius={[4, 4, 0, 0]} cursor="pointer" />
-                                        <Bar dataKey="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} cursor="pointer" />
-                                        <Line type="monotone" dataKey="Acumulado" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                                <p className="text-xs text-gray-400 mt-4 text-center">Haz clic en alguna de las barras o fecha para ver el detalle de movimientos en la parte inferior.</p>
+                            <button
+                                onClick={goNextMonth}
+                                className="p-2.5 rounded-2xl hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-400 hover:text-gray-700"
+                                aria-label="Mes siguiente"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+
+                        {/* KPI summary strip */}
+                        <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-b border-gray-100 bg-gray-50/60">
+                            <div className="px-4 py-4 text-center">
+                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-1">Ventas</div>
+                                <div className="text-lg font-black text-emerald-600 font-mono leading-tight">₡{formatMoney(monthSummary.ventas)}</div>
                             </div>
-                        )}
+                            <div className="px-4 py-4 text-center">
+                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-1">Egresos</div>
+                                <div className="text-lg font-black text-rose-500 font-mono leading-tight">₡{formatMoney(monthSummary.egresos)}</div>
+                            </div>
+                            <div className="px-4 py-4 text-center">
+                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-1">Utilidad</div>
+                                <div className={`text-lg font-black font-mono leading-tight ${monthSummary.neto >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                                    {monthSummary.neto < 0 ? '-' : ''}₡{formatMoney(Math.abs(monthSummary.neto))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Area chart */}
+                        <div className="px-2 pt-6 pb-3">
+                            {monthChartData.every(d => d.Ventas === 0 && d.Egresos === 0) ? (
+                                <div className="h-[200px] flex flex-col items-center justify-center gap-2 text-gray-300">
+                                    <TrendingUp size={36} strokeWidth={1.5} />
+                                    <p className="text-sm font-medium capitalize">Sin movimientos en {monthDisplayName}</p>
+                                </div>
+                            ) : (
+                                <div className="h-[220px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={monthChartData} margin={{ top: 10, right: 8, left: 4, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="gVentas" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="2%" stopColor="#10b981" stopOpacity={0.28} />
+                                                    <stop offset="98%" stopColor="#10b981" stopOpacity={0.02} />
+                                                </linearGradient>
+                                                <linearGradient id="gEgresos" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="2%" stopColor="#f43f5e" stopOpacity={0.18} />
+                                                    <stop offset="98%" stopColor="#f43f5e" stopOpacity={0.02} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                                            <XAxis
+                                                dataKey="day"
+                                                tick={{ fill: '#9CA3AF', fontSize: 11, fontWeight: 500 }}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                interval={2}
+                                            />
+                                            <YAxis
+                                                tickFormatter={v => v === 0 ? '0' : `₡${formatMoney(v)}`}
+                                                tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                width={74}
+                                            />
+                                            <Tooltip
+                                                formatter={(value: any, name: string) => [`₡${formatMoney(Math.abs(Number(value)))}`, name]}
+                                                labelFormatter={(label: any) => `Día ${label} · ${monthDisplayName}`}
+                                                contentStyle={{
+                                                    borderRadius: '14px',
+                                                    border: 'none',
+                                                    boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.12), 0 4px 10px -6px rgb(0 0 0 / 0.08)',
+                                                    fontSize: '12px',
+                                                    padding: '10px 14px',
+                                                }}
+                                                cursor={{ stroke: '#E5E7EB', strokeWidth: 1 }}
+                                            />
+                                            <ReferenceLine y={0} stroke="#E5E7EB" strokeDasharray="4 4" />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="Ventas"
+                                                stroke="#10b981"
+                                                strokeWidth={2.5}
+                                                fill="url(#gVentas)"
+                                                dot={false}
+                                                activeDot={{ r: 5, fill: '#10b981', strokeWidth: 0 }}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="Egresos"
+                                                stroke="#f43f5e"
+                                                strokeWidth={1.5}
+                                                fill="url(#gEgresos)"
+                                                dot={false}
+                                                activeDot={{ r: 4, fill: '#f43f5e', strokeWidth: 0 }}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="Neto"
+                                                stroke="#3b82f6"
+                                                strokeWidth={2}
+                                                dot={false}
+                                                activeDot={{ r: 5, fill: '#3b82f6', strokeWidth: 0 }}
+                                                strokeDasharray="6 3"
+                                            />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            )}
+                            {/* Legend */}
+                            <div className="flex items-center justify-center gap-5 pt-3 pb-1">
+                                <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />Ventas
+                                </span>
+                                <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block" />Egresos
+                                </span>
+                                <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
+                                    <span className="inline-block w-5 border-t-2 border-dashed border-blue-400" />Neto
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    {selectedDate && (
-                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 animate-in slide-in-from-bottom-4">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold flex items-center gap-2">
-                                    <Search className="text-gray-400" />
-                                    Movimientos del {selectedDate}
-                                </h3>
-                                <button 
+                    {/* Day selector */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.12em] mb-3 px-1">
+                            Seleccioná un día · {monthChartData.filter(d => d.hasTxs).length} con movimientos
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {monthChartData.map(d => {
+                                const dateStr = `${viewMonth}-${String(d.day).padStart(2, '0')}`;
+                                const isSelected = selectedDate === dateStr;
+                                return (
+                                    <button
+                                        key={d.day}
+                                        onClick={() => d.hasTxs && setSelectedDate(isSelected ? null : dateStr)}
+                                        className={`relative w-10 h-10 rounded-2xl text-sm font-bold transition-all duration-150 ${
+                                            isSelected
+                                                ? 'bg-jardin-primary text-white shadow-lg scale-110 ring-2 ring-jardin-primary/30'
+                                                : d.hasTxs
+                                                    ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 hover:scale-105 cursor-pointer'
+                                                    : 'bg-gray-50 text-gray-300 cursor-default'
+                                        }`}
+                                    >
+                                        {d.day}
+                                        {d.hasTxs && !isSelected && (
+                                            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Transaction detail for selected day */}
+                    {selectedDate && activeTxs.length > 0 && (
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 animate-in slide-in-from-bottom-4 duration-200">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 className="text-xl font-extrabold text-gray-900 capitalize">
+                                        {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CR', {
+                                            weekday: 'long', day: 'numeric', month: 'long'
+                                        })}
+                                    </h3>
+                                    <p className="text-sm text-gray-400 mt-0.5">
+                                        {activeTxs.length} movimiento{activeTxs.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
+                                <button
                                     onClick={() => setSelectedDate(null)}
-                                    className="text-gray-400 hover:text-gray-600 bg-gray-50 px-3 py-1 rounded-lg"
+                                    className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-xl transition-colors text-sm font-medium"
                                 >
                                     Cerrar
                                 </button>
                             </div>
-                            
                             <div className="space-y-3">
                                 {activeTxs.map(renderTxRow)}
                             </div>
                         </div>
                     )}
+
                 </div>
             )}
 
