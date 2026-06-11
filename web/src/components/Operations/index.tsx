@@ -389,7 +389,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
     const [splitCash, setSplitCash] = useState('');
     const [splitBank, setSplitBank] = useState('');
     const [salesQueue, setSalesQueue] = useState<QueuedSale[]>([]);
-    const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [saleDate, setSaleDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }));
     const [feedback, setFeedback] = useState<{ isOpen: boolean, prev: any, curr: any, description?: string }>({ isOpen: false, prev: null, curr: null });
 
     const handleCreateProd = (name: string) => {
@@ -506,7 +506,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
     const closeAll = () => {
         setFeedback({ isOpen: false, prev: null, curr: null });
         setIsConfirming(false);
-        setSaleDate(new Date().toISOString().split('T')[0]); // reset to today
+        setSaleDate(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })); // reset to today
         onClose();
     };
 
