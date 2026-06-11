@@ -270,18 +270,23 @@ export const Analysis = () => {
                     txs: d.txs || [],
                 });
             });
+        let cumVentas = 0, cumEgresos = 0, cumUtilidad = 0;
         return Array.from({ length: daysInMonth }, (_, i) => {
             const day = i + 1;
             const d = dayMap.get(day);
-            return { day, Ventas: d?.Ventas ?? 0, Egresos: -(d?.Egresos ?? 0), Utilidad: d?.Neto ?? 0, hasTxs: !!d };
+            cumVentas   += d?.Ventas ?? 0;
+            cumEgresos  -= d?.Egresos ?? 0;   // negative → va hacia abajo
+            cumUtilidad += d?.Neto ?? 0;
+            return { day, Ventas: cumVentas, Egresos: cumEgresos, Utilidad: cumUtilidad, hasTxs: !!d };
         });
     }, [chartData, viewMonth]);
 
-    const monthSummary = useMemo(() =>
-        monthChartData.reduce(
-            (acc, d) => ({ ventas: acc.ventas + d.Ventas, egresos: acc.egresos + d.Egresos, neto: acc.neto + d.Utilidad }),
-            { ventas: 0, egresos: 0, neto: 0 }
-        ), [monthChartData]);
+    const monthSummary = useMemo(() => {
+        const last = monthChartData[monthChartData.length - 1];
+        return last
+            ? { ventas: last.Ventas, egresos: last.Egresos, neto: last.Utilidad }
+            : { ventas: 0, egresos: 0, neto: 0 };
+    }, [monthChartData]);
 
     const goPrevMonth = () => {
         const [y, m] = viewMonth.split('-').map(Number);
