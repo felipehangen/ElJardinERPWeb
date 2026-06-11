@@ -273,13 +273,13 @@ export const Analysis = () => {
         return Array.from({ length: daysInMonth }, (_, i) => {
             const day = i + 1;
             const d = dayMap.get(day);
-            return { day, Ventas: d?.Ventas ?? 0, Egresos: d?.Egresos ?? 0, Neto: d?.Neto ?? 0, hasTxs: !!d };
+            return { day, Ventas: d?.Ventas ?? 0, Egresos: -(d?.Egresos ?? 0), Utilidad: d?.Neto ?? 0, hasTxs: !!d };
         });
     }, [chartData, viewMonth]);
 
     const monthSummary = useMemo(() =>
         monthChartData.reduce(
-            (acc, d) => ({ ventas: acc.ventas + d.Ventas, egresos: acc.egresos + d.Egresos, neto: acc.neto + d.Neto }),
+            (acc, d) => ({ ventas: acc.ventas + d.Ventas, egresos: acc.egresos + d.Egresos, neto: acc.neto + d.Utilidad }),
             { ventas: 0, egresos: 0, neto: 0 }
         ), [monthChartData]);
 
@@ -548,7 +548,7 @@ export const Analysis = () => {
                             </div>
                             <div className="px-4 py-4 text-center">
                                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-1">Egresos</div>
-                                <div className="text-lg font-black text-rose-500 font-mono leading-tight">₡{formatMoney(monthSummary.egresos)}</div>
+                                <div className="text-lg font-black text-rose-500 font-mono leading-tight">₡{formatMoney(Math.abs(monthSummary.egresos))}</div>
                             </div>
                             <div className="px-4 py-4 text-center">
                                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-1">Utilidad</div>
@@ -574,8 +574,8 @@ export const Analysis = () => {
                                                     <stop offset="2%" stopColor="#10b981" stopOpacity={0.28} />
                                                     <stop offset="98%" stopColor="#10b981" stopOpacity={0.02} />
                                                 </linearGradient>
-                                                <linearGradient id="gEgresos" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="2%" stopColor="#f43f5e" stopOpacity={0.18} />
+                                                <linearGradient id="gEgresos" x1="0" y1="1" x2="0" y2="0">
+                                                    <stop offset="2%" stopColor="#f43f5e" stopOpacity={0.22} />
                                                     <stop offset="98%" stopColor="#f43f5e" stopOpacity={0.02} />
                                                 </linearGradient>
                                             </defs>
@@ -627,7 +627,7 @@ export const Analysis = () => {
                                             />
                                             <Line
                                                 type="monotone"
-                                                dataKey="Neto"
+                                                dataKey="Utilidad"
                                                 stroke="#3b82f6"
                                                 strokeWidth={2}
                                                 dot={false}
@@ -647,7 +647,7 @@ export const Analysis = () => {
                                     <span className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block" />Egresos
                                 </span>
                                 <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
-                                    <span className="inline-block w-5 border-t-2 border-dashed border-blue-400" />Neto
+                                    <span className="inline-block w-5 border-t-2 border-dashed border-blue-400" />Utilidad
                                 </span>
                             </div>
                         </div>
