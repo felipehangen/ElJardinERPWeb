@@ -389,6 +389,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
     const [splitCash, setSplitCash] = useState('');
     const [splitBank, setSplitBank] = useState('');
     const [salesQueue, setSalesQueue] = useState<QueuedSale[]>([]);
+    const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [feedback, setFeedback] = useState<{ isOpen: boolean, prev: any, curr: any, description?: string }>({ isOpen: false, prev: null, curr: null });
 
     const handleCreateProd = (name: string) => {
@@ -472,10 +473,15 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
             
             const desc = sale.cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ');
 
+            // Build transaction date: use user-selected date but current time-of-day
+            const [y, m, d] = saleDate.split('-').map(Number);
+            const now = new Date();
+            const txDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+
             addTransaction({
                 id: crypto.randomUUID(),
                 type: 'SALE',
-                date: new Date().toISOString(),
+                date: txDate,
                 amount: sale.totalAmount,
                 description: `Venta: ${desc}`,
                 cogs: 0, // periodic model: COGS recognised at physical count, not at sale
@@ -500,6 +506,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
     const closeAll = () => {
         setFeedback({ isOpen: false, prev: null, curr: null });
         setIsConfirming(false);
+        setSaleDate(new Date().toISOString().split('T')[0]); // reset to today
         onClose();
     };
 
@@ -566,6 +573,17 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                     </div>
 
                     <PaymentMethod value={method} onChange={setMethod} showSplit={true} />
+
+                    {/* Date override — defaults to today, editable for backdated entries */}
+                    <div className="flex items-center gap-3 px-1">
+                        <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Fecha de la venta</label>
+                        <input
+                            type="date"
+                            value={saleDate}
+                            onChange={e => setSaleDate(e.target.value)}
+                            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-jardin-primary focus:border-transparent"
+                        />
+                    </div>
 
                     {method === 'split' && (
                         <div className="flex gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
