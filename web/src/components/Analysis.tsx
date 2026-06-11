@@ -557,7 +557,7 @@ export const Analysis = () => {
                             </div>
                             <div className="px-4 py-4 text-center">
                                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-1">Utilidad</div>
-                                <div className={`text-lg font-black font-mono leading-tight ${monthSummary.neto >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                                <div className="text-lg font-black font-mono leading-tight text-blue-600">
                                     {monthSummary.neto < 0 ? '-' : ''}₡{formatMoney(Math.abs(monthSummary.neto))}
                                 </div>
                             </div>
@@ -600,7 +600,13 @@ export const Analysis = () => {
                                                 width={74}
                                             />
                                             <Tooltip
-                                                formatter={(value: any, name: string) => [`₡${formatMoney(Math.abs(Number(value)))}`, name]}
+                                                formatter={(value: any, name: string) => {
+                                                    const v = Number(value);
+                                                    // Egresos se guarda negativo pero representa salida → mostrar positivo
+                                                    if (name === 'Egresos') return [`₡${formatMoney(Math.abs(v))}`, name];
+                                                    // Utilidad respeta su signo
+                                                    return [v < 0 ? `-₡${formatMoney(Math.abs(v))}` : `₡${formatMoney(v)}`, name];
+                                                }}
                                                 labelFormatter={(label: any) => `Día ${label} · ${monthDisplayName}`}
                                                 contentStyle={{
                                                     borderRadius: '14px',
