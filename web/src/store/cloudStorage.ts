@@ -3,6 +3,12 @@ import { supabase } from '../lib/supabase';
 
 export const CLOUD_STORAGE_KEY = 'jardin-erp-storage-v4';
 
+// Tracks the _savedAt of the last cloud state we read.
+// Passed to safe_save_app_state() so the DB can detect if someone else
+// (another tab, another device, or a manual SQL fix) updated the cloud
+// between our last load and this save attempt.
+let lastKnownCloudTs: string | undefined;
+
 // Force-fetches from Supabase, bypassing the _savedAt timestamp guard.
 // Writes result to localStorage so the next rehydrate() picks it up.
 // Returns true if the cloud data was successfully fetched and stored.
@@ -15,7 +21,9 @@ export async function forceRefreshFromCloud(): Promise<boolean> {
             .single();
 
         if (!error && data?.data_json) {
-            localStorage.setItem(CLOUD_STORAGE_KEY, JSON.stringify(data.data_json));
+            const cloudData = data.data_json as Record<string, unknown>;
+            lastKnownCloudTs = cloudData._savedAt as string | undefined;
+            localStorage.setItem(CLOUD_STORAGE_KEY, JSON.stringify(cloudData));
             return true;
         }
         return false;
@@ -31,6 +39,11 @@ export async function forceRefreshFromCloud(): Promise<boolean> {
 // getItem compares local vs cloud timestamps and only overwrites local when
 // the cloud copy is strictly newer — preventing stale cloud data from
 // silently overwriting fresher local state after a network failure.
+//
+// OPTIMISTIC LOCK: setItem calls safe_save_app_state() RPC which atomically
+// checks whether the cloud was updated by an external source (SQL fix, another
+// device) since our last load. On conflict it fires 'erp-cloud-conflict' and
+// aborts the write, so we never silently overwrite a server-side correction.
 export const cloudStorage: StateStorage = {
     getItem: async (name: string): Promise<string | null> => {
         // 1. Carga instantánea del almacenamiento local (Ultra-Rápido)
@@ -47,6 +60,10 @@ export const cloudStorage: StateStorage = {
             if (!error && data?.data_json) {
                 const cloudJson = data.data_json as Record<string, unknown>;
                 const cloudTs = cloudJson._savedAt as string | undefined;
+
+                // Always record the cloud timestamp — even if we end up using
+                // local — so setItem's conflict check has a valid baseline.
+                lastKnownCloudTs = cloudTs;
 
                 // Parse local timestamp (may not exist in old saves)
                 let localTs: string | undefined;
@@ -92,12 +109,45 @@ export const cloudStorage: StateStorage = {
         // 1. Guardar de forma ultra-rápida y síncrona en el disco local
         localStorage.setItem(name, withTimestamp);
 
-        // 2. Empujar a la nube de Supabase en segundo plano sin bloquear el UI
-        supabase.from('app_state')
-            .upsert({ id: 'erp_master_vault_v1', data_json: parsedData })
-            .then(({ error }) => {
-                if (error) console.error('⚠️ Error respaldando en la nube:', error.message);
+        // 2. Empujar a la nube via RPC atómica con check de concurrencia optimista
+        try {
+            const { data: result, error } = await supabase.rpc('safe_save_app_state', {
+                p_data: parsedData,
+                p_last_known_ts: lastKnownCloudTs ?? null
             });
+
+            if (error) {
+                // RPC no disponible (ej. primera versión pre-migración) → fallback directo
+                console.warn('safe_save_app_state no disponible, usando upsert directo:', error.message);
+                supabase.from('app_state')
+                    .upsert({ id: 'erp_master_vault_v1', data_json: parsedData })
+                    .then(({ error: e }) => {
+                        if (e) console.error('⚠️ Error respaldando en la nube:', e.message);
+                        else lastKnownCloudTs = parsedData._savedAt as string;
+                    });
+                return;
+            }
+
+            if (result?.conflict) {
+                // La nube fue actualizada externamente (SQL fix, otro dispositivo) desde
+                // nuestra última carga. Abortamos la escritura para no pisar la corrección.
+                console.warn('⚠️ Conflicto: la nube fue actualizada externamente. Abortando escritura.');
+                lastKnownCloudTs = result.cloud_ts as string | undefined;
+                window.dispatchEvent(new CustomEvent('erp-cloud-conflict'));
+                return;
+            }
+
+            // Escritura exitosa
+            lastKnownCloudTs = parsedData._savedAt as string;
+        } catch {
+            // Error de red — fallback al upsert directo sin check
+            supabase.from('app_state')
+                .upsert({ id: 'erp_master_vault_v1', data_json: parsedData })
+                .then(({ error }) => {
+                    if (error) console.error('⚠️ Error respaldando en la nube:', error.message);
+                    else lastKnownCloudTs = parsedData._savedAt as string;
+                });
+        }
     },
 
     removeItem: async (name: string): Promise<void> => {

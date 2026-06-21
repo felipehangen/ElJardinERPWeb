@@ -27,6 +27,7 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState(false);
+  const [conflictToast, setConflictToast] = useState(false);
   const isSyncingRef = useRef(false);
 
   useEffect(() => {
@@ -59,6 +60,17 @@ export default function App() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [syncFromCloud]);
+
+  // Auto-sync when cloudStorage detects an external write (SQL fix, another device)
+  useEffect(() => {
+    const handleConflict = async () => {
+      setConflictToast(true);
+      await syncFromCloud();
+      setTimeout(() => setConflictToast(false), 5000);
+    };
+    window.addEventListener('erp-cloud-conflict', handleConflict);
+    return () => window.removeEventListener('erp-cloud-conflict', handleConflict);
   }, [syncFromCloud]);
 
   // ── Version check ────────────────────────────────────────────────────────
@@ -186,10 +198,18 @@ export default function App() {
       )}
 
       {/* Cloud Sync Toast */}
-      {syncToast && (
+      {syncToast && !conflictToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-blue-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-lg">☁️</span>
           Datos actualizados desde la nube ✓
+        </div>
+      )}
+
+      {/* Conflict auto-sync Toast */}
+      {conflictToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-amber-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold animate-in slide-in-from-bottom-4 duration-300">
+          <span className="text-lg">⚠️</span>
+          La nube fue actualizada externamente — sincronizando...
         </div>
       )}
     </Layout>
