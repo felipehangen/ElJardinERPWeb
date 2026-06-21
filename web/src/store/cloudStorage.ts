@@ -1,6 +1,29 @@
 import type { StateStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 
+export const CLOUD_STORAGE_KEY = 'jardin-erp-storage-v4';
+
+// Force-fetches from Supabase, bypassing the _savedAt timestamp guard.
+// Writes result to localStorage so the next rehydrate() picks it up.
+// Returns true if the cloud data was successfully fetched and stored.
+export async function forceRefreshFromCloud(): Promise<boolean> {
+    try {
+        const { data, error } = await supabase
+            .from('app_state')
+            .select('data_json')
+            .eq('id', 'erp_master_vault_v1')
+            .single();
+
+        if (!error && data?.data_json) {
+            localStorage.setItem(CLOUD_STORAGE_KEY, JSON.stringify(data.data_json));
+            return true;
+        }
+        return false;
+    } catch {
+        return false;
+    }
+}
+
 // Un adaptador personalizado para Zustand que guarda en LocalStorage para velocidad extrema,
 // y Sincroniza con Supabase en segundo plano para respaldar en la nube multi-dispositivo.
 //

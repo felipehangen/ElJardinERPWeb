@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { cn } from './ui';
-import { LayoutDashboard, Package, BarChart3, Settings as SettingsIcon, Menu, X, PieChart, List } from 'lucide-react';
+import { LayoutDashboard, Package, BarChart3, Settings as SettingsIcon, Menu, X, PieChart, List, RefreshCw } from 'lucide-react';
 import packageJson from '../../package.json';
 
 interface LayoutProps {
     children: React.ReactNode;
     currentTab: string;
     onTabChange: (tab: string) => void;
+    onSync?: () => void;
+    isSyncing?: boolean;
 }
 
-export const Layout = ({ children, currentTab, onTabChange }: LayoutProps) => {
+export const Layout = ({ children, currentTab, onTabChange, onSync, isSyncing }: LayoutProps) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const NavItem = ({ id, icon, label }: any) => (
@@ -41,12 +43,35 @@ export const Layout = ({ children, currentTab, onTabChange }: LayoutProps) => {
                     <NavItem id="txs" icon={<List size={20} />} label="Transacciones" />
                     <NavItem id="sets" icon={<SettingsIcon size={20} />} label="Ajustes" />
                 </nav>
+                {onSync && (
+                    <button
+                        onClick={onSync}
+                        disabled={isSyncing}
+                        className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all text-sm font-medium disabled:opacity-50"
+                        title="Sincronizar datos desde la nube"
+                    >
+                        <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
+                        <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar nube'}</span>
+                    </button>
+                )}
             </aside>
 
             {/* Mobile Header */}
             <header className="lg:hidden fixed top-0 w-full bg-white border-b border-gray-200 z-20 px-4 h-16 flex items-center justify-between">
                 <div className="font-bold text-lg">El Jardín</div>
-                <button onClick={() => setSidebarOpen(true)} className="p-2"><Menu /></button>
+                <div className="flex items-center gap-1">
+                    {onSync && (
+                        <button
+                            onClick={onSync}
+                            disabled={isSyncing}
+                            className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                            title="Sincronizar desde la nube"
+                        >
+                            <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
+                        </button>
+                    )}
+                    <button onClick={() => setSidebarOpen(true)} className="p-2"><Menu /></button>
+                </div>
             </header>
 
             {/* Mobile Sidebar Overlay */}

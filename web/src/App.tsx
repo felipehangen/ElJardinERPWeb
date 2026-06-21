@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStore } from './store/useStore';
+import { forceRefreshFromCloud } from './store/cloudStorage';
 import { Onboarding } from './components/Onboarding';
 import { Login } from './components/Login';
 import { Layout } from './components/Layout';
@@ -24,12 +25,38 @@ export default function App() {
   const [backupToast, setBackupToast] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncToast, setSyncToast] = useState(false);
 
   useEffect(() => {
     const unsub = useStore.persist.onFinishHydration(() => setIsHydrated(true));
     setIsHydrated(useStore.persist.hasHydrated());
     return unsub;
   }, []);
+
+  const syncFromCloud = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const ok = await forceRefreshFromCloud();
+      if (ok) {
+        await useStore.persist.rehydrate();
+        setSyncToast(true);
+        setTimeout(() => setSyncToast(false), 3000);
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing]);
+
+  // Auto-sync whenever the user returns to this tab
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') syncFromCloud();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [syncFromCloud]);
 
   // ── Version check ────────────────────────────────────────────────────────
   // Checks on startup, on tab-focus, and every 5 minutes. When a new deploy
@@ -130,7 +157,7 @@ export default function App() {
         </button>
       </div>
     )}
-    <Layout currentTab={tab} onTabChange={setTab}>
+    <Layout currentTab={tab} onTabChange={setTab} onSync={syncFromCloud} isSyncing={isSyncing}>
       {tab === 'ops' && <Dashboard onOpenModal={setModal} />}
       {tab === 'cats' && <Catalogs />}
       {tab === 'reps' && <Reports />}
@@ -152,6 +179,14 @@ export default function App() {
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-lg">💾</span>
           Respaldo diario guardado ✓
+        </div>
+      )}
+
+      {/* Cloud Sync Toast */}
+      {syncToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-blue-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold animate-in slide-in-from-bottom-4 duration-300">
+          <span className="text-lg">☁️</span>
+          Datos actualizados desde la nube ✓
         </div>
       )}
     </Layout>
