@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from './store/useStore';
 import { forceRefreshFromCloud } from './store/cloudStorage';
 import { Onboarding } from './components/Onboarding';
@@ -27,6 +27,7 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState(false);
+  const isSyncingRef = useRef(false);
 
   useEffect(() => {
     const unsub = useStore.persist.onFinishHydration(() => setIsHydrated(true));
@@ -35,7 +36,8 @@ export default function App() {
   }, []);
 
   const syncFromCloud = useCallback(async () => {
-    if (isSyncing) return;
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     setIsSyncing(true);
     try {
       const ok = await forceRefreshFromCloud();
@@ -45,9 +47,10 @@ export default function App() {
         setTimeout(() => setSyncToast(false), 3000);
       }
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [isSyncing]);
+  }, []); // stable — uses ref for guard, no deps needed
 
   // Auto-sync whenever the user returns to this tab
   useEffect(() => {
