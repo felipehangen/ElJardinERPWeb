@@ -26,7 +26,7 @@ export const SystemAuditTest = () => {
         const step= (n: number, title: string)   => log(`── [${n}] ${title}`, 'step');
 
         const checkEq = (label: string) => {
-            const { banco, caja_chica, inventario, activo_fijo, patrimonio, total } = snap();
+            const { patrimonio, total } = snap();
             const diff = Math.abs(total - patrimonio);
             if (diff < 0.02) ok(`Assets = Equity  [${label}]`, `₡${total.toFixed(0)} = ₡${patrimonio.toFixed(0)}`);
             else fail(`Assets ≠ Equity  [${label}]`,

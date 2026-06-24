@@ -40,11 +40,11 @@ describe('cloudStorage lastKnownCloudTs sync update', () => {
     ;(supabase.rpc as unknown as { _reset: () => void })._reset()
     let callCount = 0
     vi.mocked(supabase.rpc).mockReset()
-    vi.mocked(supabase.rpc).mockImplementation(async (..._args: unknown[]) => {
+    vi.mocked(supabase.rpc).mockImplementation((async (..._args: unknown[]) => {
       callCount++
       if (callCount === 1) throw new Error('RPC unavailable')
       return { data: { conflict: false }, error: null }
-    })
+    }) as any)
   })
 
   it('second setItem passes a non-null p_last_known_ts even before the fallback upsert resolves', async () => {

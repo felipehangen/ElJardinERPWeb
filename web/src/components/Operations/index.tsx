@@ -45,7 +45,7 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, data }: any) => {
 // 1. Purchase (Inventario/Activo)
 export const PurchaseModal = ({ isOpen, onClose }: any) => {
     const {
-        accounts, updateAccounts, reconcile, addTransaction,
+        updateAccounts, reconcile, addTransaction,
         inventory, addInventoryItem, updateInventoryItem,
         addAssetItem,
         providers, addProvider,
@@ -378,7 +378,7 @@ interface QueuedSale {
 // 2. Sale (Venta con Carrito)
 export const SaleModal = ({ isOpen, onClose }: any) => {
     const {
-        accounts, updateAccounts, reconcile, addTransaction,
+        updateAccounts, reconcile, addTransaction,
         products, addProduct, getLedgerAccounts
     } = useStore();
 
@@ -686,7 +686,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 // 3. Expense
 export const ExpenseModal = ({ isOpen, onClose }: any) => {
     const {
-        accounts, updateAccounts, reconcile, addTransaction,
+        updateAccounts, reconcile, addTransaction,
         expenseTypes, addExpenseType,
         providers, addProvider, getLedgerAccounts
     } = useStore();
@@ -830,7 +830,7 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
 export const ProductionModal = ({ isOpen, onClose }: any) => {
     const {
         inventory, updateInventoryItem,
-        addInventoryItem, accounts, reconcile, addTransaction,
+        addInventoryItem, reconcile, addTransaction,
         consumeInventoryFIFO, getLedgerAccounts
     } = useStore();
 
@@ -1129,7 +1129,7 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
 
 // 5. Inventory Count
 export const InventoryCountModal = ({ isOpen, onClose }: any) => {
-    const { inventory, locations, updateInventoryItem, accounts, updateAccounts, reconcile, addTransaction, consumeInventoryFIFO } = useStore();
+    const { inventory, locations, updateInventoryItem, reconcile, addTransaction, consumeInventoryFIFO } = useStore();
 
     // State: map of itemId -> newStock (string to allow typing)
     const [counts, setCounts] = useState<Record<string, string>>({});

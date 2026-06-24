@@ -11,6 +11,10 @@ const getYTDStartDate = () => {
     return `${today.getFullYear()}-01-01`;
 };
 
+// Format a count-boundary date in Costa Rica time (e.g. "30 jun 2026").
+const fmtCountDay = (d: Date) =>
+    d.toLocaleDateString('es-CR', { timeZone: 'America/Costa_Rica', day: '2-digit', month: 'short', year: 'numeric' });
+
 export const Reports = () => {
     const { accounts, inventory, assets, getLedgerAccounts, transactions } = useStore();
     const ledger = getLedgerAccounts();
@@ -19,6 +23,9 @@ export const Reports = () => {
     const [searchAsset, setSearchAsset] = useState('');
     const [finStartDate, setFinStartDate] = useState(getYTDStartDate());
     const [finEndDate, setFinEndDate] = useState(''); // Empty means up to today
+    const [finMode, setFinMode] = useState<'fechas' | 'tomas'>('fechas'); // periodo por fechas o entre tomas físicas
+    const [countFromKey, setCountFromKey] = useState(''); // dayKey de la toma física inicial (o 'INICIO')
+    const [countToKey, setCountToKey] = useState('');     // dayKey de la toma física de cierre
 
     if (!accounts) return <div>Cargando cuentas...</div>;
 
@@ -46,11 +53,45 @@ export const Reports = () => {
     // so it always equals total assets. Do NOT add utilidadNeta on top (that would double-count).
     const totalPatrimonio = accounts.patrimonio;
 
-    const financialData = useMemo(() => {
-        const start = finStartDate ? new Date(finStartDate + 'T00:00:00') : null;
-        const end = finEndDate ? new Date(finEndDate + 'T23:59:59') : null;
+    // Inventory-count boundaries: one entry per CR-local day that had a physical inventory
+    // count (ADJUSTMENT with itemsAdjusted). If a day had several counts we keep the LAST of
+    // that day as the cut-off ("el último ajuste alimentado ese día"). Sorted oldest → newest.
+    const countBoundaries = useMemo(() => {
+        const byDay = new Map<string, { dayKey: string; last: Date; cogs: number }>();
+        transactions.forEach(t => {
+            if (t.type !== 'ADJUSTMENT' || t.status === 'VOIDED' || t.voidingTxId) return;
+            if (t.details?.itemsAdjusted === undefined) return;
+            const d = new Date(t.date);
+            const dayKey = d.toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' });
+            const cogs = t.cogs !== undefined ? t.cogs : t.amount;
+            const ex = byDay.get(dayKey);
+            if (!ex) byDay.set(dayKey, { dayKey, last: d, cogs });
+            else { ex.cogs += cogs; if (d.getTime() > ex.last.getTime()) ex.last = d; }
+        });
+        return Array.from(byDay.values()).sort((a, b) => a.last.getTime() - b.last.getTime());
+    }, [transactions]);
 
-        // Get ledger accounts for the specified period
+    // Effective selection with sensible defaults: the most recent closed period
+    // (penúltima toma → última toma), or apertura → primera toma si solo hay una.
+    const effectiveTo = countToKey || (countBoundaries.length ? countBoundaries[countBoundaries.length - 1].dayKey : '');
+    const effectiveFrom = countFromKey || (countBoundaries.length >= 2 ? countBoundaries[countBoundaries.length - 2].dayKey : 'INICIO');
+
+    const financialData = useMemo(() => {
+        let start: Date | null = null;
+        let end: Date | null = null;
+
+        if (finMode === 'tomas') {
+            // Período (A, B]: la toma A cierra el período anterior (exclusiva), la toma B
+            // cierra este (inclusiva). Costo de Ventas = el reconocido en B. INICIO → sin tope inferior.
+            const from = countBoundaries.find(b => b.dayKey === effectiveFrom);
+            const to = countBoundaries.find(b => b.dayKey === effectiveTo);
+            start = from ? new Date(from.last.getTime() + 1) : null; // +1ms: excluye la toma A
+            end = to ? to.last : null;                               // inclusive de la toma B
+        } else {
+            start = finStartDate ? new Date(finStartDate + 'T00:00:00') : null;
+            end = finEndDate ? new Date(finEndDate + 'T23:59:59.999') : null; // incluye todo el día final
+        }
+
         const periodLedger = getLedgerAccounts(start, end);
 
         const calcVentas = periodLedger.ventas || 0;
@@ -71,9 +112,11 @@ export const Reports = () => {
             otrosGastos,
             utilidadBruta,
             utilidadOperativa,
-            utilidadNeta
+            utilidadNeta,
+            periodStart: start,
+            periodEnd: end,
         };
-    }, [getLedgerAccounts, finStartDate, finEndDate]);
+    }, [getLedgerAccounts, finMode, finStartDate, finEndDate, effectiveFrom, effectiveTo, countBoundaries]);
 
     // Filter Inventory
     const filteredInventory = useMemo(() => {
@@ -96,7 +139,12 @@ export const Reports = () => {
 
         if (tab === 'financial') {
             filename = "Estados_Financieros.csv";
-            csvContent += "ESTADO DE RESULTADOS\nConcepto,Monto (CRC)\n";
+            const periodoDesc = finMode === 'tomas'
+                ? `Toma fisica: ${financialData.periodStart ? financialData.periodStart.toLocaleDateString() : 'Apertura'} a ${financialData.periodEnd ? financialData.periodEnd.toLocaleDateString() : 'Hoy'}`
+                : `Fechas: ${financialData.periodStart ? financialData.periodStart.toLocaleDateString() : 'Inicio'} a ${financialData.periodEnd ? financialData.periodEnd.toLocaleDateString() : 'Hoy'}`;
+            csvContent += "ESTADO DE RESULTADOS\n";
+            csvContent += `Periodo,"${periodoDesc}"\n`;
+            csvContent += "Concepto,Monto (CRC)\n";
             csvContent += `Ventas Totales,${financialData.ventas}\n`;
             csvContent += `Costo de Ventas,-${financialData.costos}\n`;
             csvContent += `Utilidad Bruta,${financialData.utilidadBruta}\n`;
@@ -195,31 +243,76 @@ export const Reports = () => {
                                 <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Rendimiento</span>
                             </div>
                             <div className="flex gap-2 items-center flex-wrap justify-end no-print">
-                                <div className="flex items-center gap-1">
-                                    <Input
-                                        type="date"
-                                        value={finStartDate}
-                                        onChange={e => setFinStartDate(e.target.value)}
-                                        className="w-auto h-9 text-xs"
-                                        title="Fecha Inicio"
-                                    />
-                                    <span className="text-gray-400 text-xs">-</span>
-                                    <Input
-                                        type="date"
-                                        value={finEndDate}
-                                        onChange={e => setFinEndDate(e.target.value)}
-                                        className="w-auto h-9 text-xs"
-                                        title="Fecha Fin"
-                                    />
-                                </div>
-                                {(finStartDate || finEndDate) && (
+                                {/* Selector de modo: por fechas libres | entre tomas físicas */}
+                                <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs">
                                     <button
-                                        onClick={() => { setFinStartDate(''); setFinEndDate(''); }}
-                                        className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                                        title="Limpiar (Ver Histórico Completo)"
-                                    >
-                                        <X size={16} />
-                                    </button>
+                                        onClick={() => setFinMode('fechas')}
+                                        className={cn("px-2 py-1 rounded-md font-medium transition-all", finMode === 'fechas' ? "bg-white shadow-sm text-jardin-primary" : "text-gray-500")}
+                                    >Por fechas</button>
+                                    <button
+                                        onClick={() => setFinMode('tomas')}
+                                        className={cn("px-2 py-1 rounded-md font-medium transition-all", finMode === 'tomas' ? "bg-white shadow-sm text-jardin-primary" : "text-gray-500")}
+                                    >Por toma física</button>
+                                </div>
+
+                                {finMode === 'fechas' ? (
+                                    <>
+                                        <div className="flex items-center gap-1">
+                                            <Input
+                                                type="date"
+                                                value={finStartDate}
+                                                onChange={e => setFinStartDate(e.target.value)}
+                                                className="w-auto h-9 text-xs"
+                                                title="Fecha Inicio"
+                                            />
+                                            <span className="text-gray-400 text-xs">-</span>
+                                            <Input
+                                                type="date"
+                                                value={finEndDate}
+                                                onChange={e => setFinEndDate(e.target.value)}
+                                                className="w-auto h-9 text-xs"
+                                                title="Fecha Fin"
+                                            />
+                                        </div>
+                                        {(finStartDate || finEndDate) && (
+                                            <button
+                                                onClick={() => { setFinStartDate(''); setFinEndDate(''); }}
+                                                className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                                                title="Limpiar (Ver Histórico Completo)"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    countBoundaries.length === 0 ? (
+                                        <span className="text-xs text-amber-600">Aún no hay tomas físicas registradas.</span>
+                                    ) : (
+                                        <div className="flex items-center gap-1">
+                                            <select
+                                                value={effectiveFrom}
+                                                onChange={e => setCountFromKey(e.target.value)}
+                                                className="h-9 text-xs border rounded-lg px-2 bg-white"
+                                                title="Desde toma física"
+                                            >
+                                                <option value="INICIO">Apertura</option>
+                                                {countBoundaries.map(b => (
+                                                    <option key={b.dayKey} value={b.dayKey}>{fmtCountDay(b.last)}</option>
+                                                ))}
+                                            </select>
+                                            <span className="text-gray-400 text-xs">→</span>
+                                            <select
+                                                value={effectiveTo}
+                                                onChange={e => setCountToKey(e.target.value)}
+                                                className="h-9 text-xs border rounded-lg px-2 bg-white"
+                                                title="Hasta toma física (cierre)"
+                                            >
+                                                {countBoundaries.map(b => (
+                                                    <option key={b.dayKey} value={b.dayKey}>{fmtCountDay(b.last)}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )
                                 )}
                             </div>
                         </div>
@@ -245,7 +338,14 @@ export const Reports = () => {
                                 <span>₡{fmt(financialData.utilidadNeta)}</span>
                             </div>
                         </div>
-                        {(finStartDate || finEndDate) && (
+                        {finMode === 'tomas' ? (
+                            countBoundaries.length > 0 && (
+                                <div className="text-xs text-center text-gray-400 mt-2">
+                                    Período: {effectiveFrom === 'INICIO' ? 'Apertura' : fmtCountDay(countBoundaries.find(b => b.dayKey === effectiveFrom)?.last || new Date())} → {fmtCountDay(countBoundaries.find(b => b.dayKey === effectiveTo)?.last || new Date())}
+                                    <span className="block text-[10px] text-gray-400">Costo de Ventas = el reconocido en la toma de cierre</span>
+                                </div>
+                            )
+                        ) : (finStartDate || finEndDate) && (
                             <div className="text-xs text-center text-gray-400 mt-2">
                                 Periodo: {finStartDate ? new Date(finStartDate + 'T00:00:00').toLocaleDateString() : 'Inicio'} - {finEndDate ? new Date(finEndDate + 'T23:59:59').toLocaleDateString() : 'Hoy'}
                             </div>

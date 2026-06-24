@@ -731,7 +731,7 @@ export const Analysis = () => {
                                                 width={74}
                                             />
                                             <Tooltip
-                                                formatter={(value: any, name: string) => {
+                                                formatter={(value: any, name: any) => {
                                                     const v = Number(value);
                                                     // Egresos se guarda negativo pero representa salida → mostrar positivo
                                                     if (name === 'Egresos') return [`₡${formatMoney(Math.abs(v))}`, name];
@@ -950,7 +950,7 @@ export const Analysis = () => {
                                                 axisLine={false} tickLine={false} width={74}
                                             />
                                             <Tooltip
-                                                formatter={(value: any, name: string) => {
+                                                formatter={(value: any, name: any) => {
                                                     const wk = availableWeeks.find(w => w.key === name);
                                                     const v = Number(value);
                                                     return [v < 0 ? `-₡${formatMoney(Math.abs(v))}` : `₡${formatMoney(v)}`, wk?.label || name];

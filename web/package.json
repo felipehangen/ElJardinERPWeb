@@ -1,7 +1,7 @@
 {
   "name": "web",
   "private": true,
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "El Jardin ERP Management System",
   "author": "Felipe <felipe@eljardin.cr>",
   "homepage": "./",
