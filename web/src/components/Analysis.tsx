@@ -3,8 +3,51 @@ import { useStore } from '../store/useStore';
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Search, Info, TrendingUp, TrendingDown, Download, FilterX, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatMoney, formatQty } from './ui';
+import type { Transaction } from '../types';
 
 const WEEK_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4'];
+
+// Classify an ADJUSTMENT transaction for chart series, mirroring the ledger logic in
+// getLedgerAccounts so charts and the books agree:
+//   • inventory physical count (details.itemsAdjusted) → cost of goods sold  (asCosto)
+//   • cash audit (diffCaja/diffBanco):    loss → asGasto,  gain → asIngreso
+//   • asset count (details.diff, no itemsAdjusted): loss → asGasto, gain → asIngreso
+// `isRelevant` is false for adjustments that contribute nothing (e.g. unknown/zero diff).
+export function classifyAdjustmentForChart(tx: Transaction): {
+    asIngreso: number; asGasto: number; asCosto: number; isRelevant: boolean;
+} {
+    const none = { asIngreso: 0, asGasto: 0, asCosto: 0, isRelevant: false };
+    if (tx.type !== 'ADJUSTMENT' || tx.voidingTxId) return none;
+
+    const d = tx.details || {};
+
+    // Inventory physical count → COGS (periodic model). Prefer signed cogs over abs amount.
+    if (d.itemsAdjusted !== undefined) {
+        const cogs = tx.cogs !== undefined ? tx.cogs : tx.amount;
+        return { asIngreso: 0, asGasto: 0, asCosto: cogs, isRelevant: true };
+    }
+
+    // Cash audit → other income / other expense.
+    const isCash = d.method === 'caja_chica' || d.method === 'banco'
+        || d.account === 'caja_chica' || d.account === 'banco';
+    if (isCash) {
+        const diff = d.diffCaja ?? d.diffBanco;
+        if (diff === undefined) return none; // unknown — don't misclassify
+        if (diff > 0) return { asIngreso: 0, asGasto: tx.amount, asCosto: 0, isRelevant: true }; // loss
+        if (diff < 0) return { asIngreso: tx.amount, asGasto: 0, asCosto: 0, isRelevant: true }; // gain
+        return none;
+    }
+
+    // Asset count → other income / other expense (NOT cost of sales).
+    if (d.diff !== undefined) {
+        const diff = d.assetDiff ?? tx.cogs ?? d.diff;
+        if (diff > 0) return { asIngreso: 0, asGasto: tx.amount, asCosto: 0, isRelevant: true }; // loss
+        if (diff < 0) return { asIngreso: tx.amount, asGasto: 0, asCosto: 0, isRelevant: true }; // gain
+        return none;
+    }
+
+    return none;
+}
 
 const getLocalDateStr = (date: Date): string => {
     const tzOffset = date.getTimezoneOffset() * 60000;
@@ -230,21 +273,15 @@ export const Analysis = () => {
             } else if (t.type === 'EXPENSE') {
                 asGasto += t.amount;
                 isRelevant = true;
-            } else if (t.type === 'ADJUSTMENT' && !t.voidingTxId) {
-                // Use structured details fields — same logic as statementFilter classification
-                const cashMethod = t.details?.method === 'caja_chica' || t.details?.method === 'banco';
-                if (cashMethod) {
-                    // Cash audit: positive diff = loss (Gastos), negative diff = gain (Ingresos)
-                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
-                    if (diff !== undefined) {
-                        if (diff < 0) { asIngreso += t.amount; isRelevant = true; }
-                        else if (diff > 0) { asGasto += t.amount; isRelevant = true; }
-                    }
-                } else {
-                    // Inventory count or asset count → Costos
-                    const cogsVal = t.cogs !== undefined ? t.cogs : t.amount;
-                    if (cogsVal !== 0) { asCosto += cogsVal; isRelevant = true; }
-                }
+            } else if (t.type === 'ADJUSTMENT') {
+                // Single source of truth — same classification as the ledger (getLedgerAccounts).
+                // Fixes asset physical counts that were previously lumped into Costos instead of
+                // Gastos/Ingresos. Cash audits and inventory counts are unchanged.
+                const c = classifyAdjustmentForChart(t);
+                asIngreso += c.asIngreso;
+                asGasto += c.asGasto;
+                asCosto += c.asCosto;
+                isRelevant = c.isRelevant;
             }
 
             if (isRelevant) {

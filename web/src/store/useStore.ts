@@ -164,17 +164,28 @@ export const useStore = create<AppState & StoreActions>()(
                     t.details?.method === 'caja_chica' || t.details?.method === 'banco' ||
                     t.details?.account === 'caja_chica' || t.details?.account === 'banco'
                 );
+                // Classify each cash account by its OWN diff. Current data records caja and
+                // banco audits as separate single-account txs, but summing per-account here
+                // also handles a hypothetical combined tx (both diffs set) correctly. When a
+                // tx carries no per-account diff, fall back to the single amount via diffCaja
+                // ?? diffBanco so legacy txs are still classified rather than dropped.
                 const cashOtrosIngresos = cashAdjTxs.reduce((acc, t) => {
-                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
-                    if (diff === undefined) return acc; // unknown — skip to avoid misclassification
-                    const isGain = diff < 0;
-                    return isGain ? acc + t.amount : acc;
+                    const dc = t.details?.diffCaja;
+                    const db = t.details?.diffBanco;
+                    if (dc === undefined && db === undefined) return acc; // unknown — skip
+                    let gain = 0;
+                    if (dc !== undefined && dc < 0) gain += Math.abs(dc);
+                    if (db !== undefined && db < 0) gain += Math.abs(db);
+                    return acc + gain;
                 }, 0);
                 const cashOtrosGastos = cashAdjTxs.reduce((acc, t) => {
-                    const diff = t.details?.diffCaja ?? t.details?.diffBanco;
-                    if (diff === undefined) return acc; // unknown — skip to avoid misclassification
-                    const isLoss = diff > 0;
-                    return isLoss ? acc + t.amount : acc;
+                    const dc = t.details?.diffCaja;
+                    const db = t.details?.diffBanco;
+                    if (dc === undefined && db === undefined) return acc; // unknown — skip
+                    let loss = 0;
+                    if (dc !== undefined && dc > 0) loss += Math.abs(dc);
+                    if (db !== undefined && db > 0) loss += Math.abs(db);
+                    return acc + loss;
                 }, 0);
 
                 // Asset count adjustments → other income / other expense (NOT cost of sales)
@@ -239,6 +250,19 @@ export const useStore = create<AppState & StoreActions>()(
                 }];
 
                 batches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                // Normalize phantom stock identically to consumeInventoryFIFO so the COGS
+                // preview matches what an actual consumption would cost. Without this, an
+                // item whose stock exceeds the sum of its batches would under-report.
+                const batchTotal = batches.reduce((sum, b) => sum + b.stock, 0);
+                if (batchTotal < item.stock) {
+                    batches.push({
+                        id: 'phantom-' + crypto.randomUUID(),
+                        date: new Date().toISOString(), // newest → consumed last
+                        cost: item.cost,
+                        stock: item.stock - batchTotal,
+                    });
+                }
 
                 for (const batch of batches) {
                     if (remainingQty <= 0) break;
@@ -411,14 +435,9 @@ export const useStore = create<AppState & StoreActions>()(
                 switch (tx.type) {
                     case 'SALE':
                         reverseCash(tx.details?.method, tx.amount, true, tx.details?.splitAmounts);
-                        if (tx.details?.cart && (tx.cogs || 0) > 0) {
-                            const totalQty = tx.details.cart.reduce((s: number, c: any) => s + c.qty, 0);
-                            tx.details.cart.forEach((cartItem: any) => {
-                                const proportion = cartItem.qty / totalQty;
-                                reverseInventoryFIFO(cartItem.id, cartItem.qty, (tx.cogs || 0) * proportion);
-                            });
-                        }
-                        // patrimonio reconciled automatically (cash up, inventory up → patrimonio recalculated)
+                        // Periodic model: COGS = 0 at sale time, recognised at physical count (InventoryCountModal).
+                        // No FIFO stock restoration needed — sale reversal only affects cash.
+                        // patrimonio reconciled automatically (cash up → patrimonio recalculated)
                         break;
 
                     case 'PURCHASE':
@@ -483,8 +502,11 @@ export const useStore = create<AppState & StoreActions>()(
                         // Restore ingredient stock via FIFO refund batches
                         if (tx.details?.ingredients) {
                             tx.details.ingredients.forEach((ing: any) => {
-                                const exactCost = parseFloat(ing.qty) * ing.item.cost;
-                                reverseInventoryFIFO(ing.item.id, parseFloat(ing.qty), exactCost);
+                                const qty = parseFloat(ing.qty);
+                                // Prefer the exact FIFO cost recorded at production time; fall back to
+                                // avg cost only for legacy transactions that predate exactCost.
+                                const exactCost = ing.exactCost !== undefined ? ing.exactCost : qty * ing.item.cost;
+                                reverseInventoryFIFO(ing.item.id, qty, exactCost);
                             });
                         }
                         // inventario reconciled from the net physical change (should be ~zero)
@@ -513,10 +535,45 @@ export const useStore = create<AppState & StoreActions>()(
                             // patrimonio reconciled from cash change
                         }
                         if (tx.details?.itemsAdjusted !== undefined) {
-                            // Physical stock restoration is omitted (FIFO complexity).
-                            // inventario and patrimonio reconcile from the physical array
-                            // which retains the post-adjustment stock levels.
-                            // Net effect on balance sheet is zero after void.
+                            // Restore physical inventory to its PRE-count state so the balance
+                            // sheet (inventario/patrimonio) stays consistent with the P&L: voiding
+                            // drops this tx's cogs out of `costos`, so the stock change it caused
+                            // must be undone too. Restoration is FIFO-consistent.
+                            //   difference = sys − real  (>0 lost via FIFO, <0 found via new batch)
+                            (tx.details?.itemDetails || []).forEach((d: any) => {
+                                const difference = (d.sys ?? 0) - (d.real ?? 0);
+                                if (difference > 0) {
+                                    // Stock was consumed via FIFO at count → re-add as a refund batch
+                                    // priced at the exact cost that was removed (financialDiff > 0).
+                                    reverseInventoryFIFO(d.id, difference, Math.abs(d.financialDiff ?? 0));
+                                } else if (difference < 0) {
+                                    // Stock was added via a new batch at count → remove that quantity.
+                                    const removeQty = Math.abs(difference);
+                                    const idx = updatedInventory.findIndex(i => i.id === d.id);
+                                    if (idx === -1) return;
+                                    const item = updatedInventory[idx];
+                                    let newBatches = [...(item.batches || [])];
+                                    if (d.batchId) {
+                                        // Exact removal of the batch appended at count time.
+                                        newBatches = newBatches.filter(b => b.id !== d.batchId);
+                                    } else {
+                                        // Legacy fallback: peel qty from the newest batches (LIFO).
+                                        let qty = removeQty;
+                                        const sorted = [...newBatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                                        newBatches = [];
+                                        for (const b of sorted) {
+                                            if (qty <= 0) { newBatches.push(b); continue; }
+                                            if (b.stock <= qty) { qty -= b.stock; }
+                                            else { newBatches.push({ ...b, stock: b.stock - qty }); qty = 0; }
+                                        }
+                                    }
+                                    const newTotalStock = newBatches.reduce((s, b) => s + b.stock, 0);
+                                    const newTotalValue = newBatches.reduce((s, b) => s + b.stock * b.cost, 0);
+                                    const newAvgCost = newTotalStock > 0 ? newTotalValue / newTotalStock : item.cost;
+                                    updatedInventory[idx] = { ...item, stock: newTotalStock, cost: newAvgCost, batches: newBatches };
+                                }
+                            });
+                            // inventario/patrimonio reconcile from the restored physical array below.
                         }
                         if (tx.details?.diff !== undefined && tx.details?.itemsAdjusted === undefined) {
                             // Asset count void: restore catalog items to pre-adjustment values

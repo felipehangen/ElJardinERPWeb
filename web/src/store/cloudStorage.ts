@@ -32,6 +32,42 @@ export async function forceRefreshFromCloud(): Promise<boolean> {
     }
 }
 
+// Fallback usado cuando la RPC atómica no está disponible o la red falla.
+// Antes de sobrescribir, re-consulta el _savedAt de la nube y compara contra
+// lastKnownCloudTs: si la nube es ESTRICTAMENTE más nueva, alguien la corrigió
+// desde nuestra última carga → abortamos para no pisar la corrección (misma
+// semántica que el optimistic lock). El upsert se espera (await) para que la
+// escritura termine antes de resolver setItem.
+async function guardedDirectUpsert(parsedData: Record<string, unknown>): Promise<void> {
+    try {
+        const { data: current } = await supabase
+            .from('app_state')
+            .select('data_json')
+            .eq('id', 'erp_master_vault_v1')
+            .single();
+        const cloudTs = (current?.data_json as Record<string, unknown> | undefined)?._savedAt as string | undefined;
+        if (cloudTs && lastKnownCloudTs && cloudTs > lastKnownCloudTs) {
+            console.warn('⚠️ Conflicto (fallback): la nube es más reciente. Abortando escritura.');
+            lastKnownCloudTs = cloudTs;
+            window.dispatchEvent(new CustomEvent('erp-cloud-conflict'));
+            return;
+        }
+    } catch {
+        // No pudimos leer la nube (offline). Continuamos con el upsert: en modo
+        // offline el upsert también fallará y se captura abajo; si hay red, escribimos.
+    }
+    // Sin conflicto → avanzamos el baseline ANTES de que el upsert resuelva, para que
+    // un setItem encadenado lleve un p_last_known_ts no nulo (optimista, igual que la
+    // ruta exitosa de la RPC). Si el upsert falla, solo registramos el error.
+    lastKnownCloudTs = parsedData._savedAt as string;
+    const { error } = await supabase
+        .from('app_state')
+        .upsert({ id: 'erp_master_vault_v1', data_json: parsedData });
+    if (error) {
+        console.error('⚠️ Error respaldando en la nube:', error.message);
+    }
+}
+
 // Un adaptador personalizado para Zustand que guarda en LocalStorage para velocidad extrema,
 // y Sincroniza con Supabase en segundo plano para respaldar en la nube multi-dispositivo.
 //
@@ -132,14 +168,9 @@ export const cloudStorage: StateStorage = {
             });
 
             if (error) {
-                // RPC no disponible (ej. primera versión pre-migración) → fallback directo
-                console.warn('safe_save_app_state no disponible, usando upsert directo:', error.message);
-                lastKnownCloudTs = parsedData._savedAt as string;
-                supabase.from('app_state')
-                    .upsert({ id: 'erp_master_vault_v1', data_json: parsedData })
-                    .then(({ error: e }) => {
-                        if (e) console.error('⚠️ Error respaldando en la nube:', e.message);
-                    });
+                // RPC no disponible (ej. primera versión pre-migración) → fallback con guarda
+                console.warn('safe_save_app_state no disponible, usando upsert con guarda:', error.message);
+                await guardedDirectUpsert(parsedData);
                 return;
             }
 
@@ -155,13 +186,8 @@ export const cloudStorage: StateStorage = {
             // Escritura exitosa
             lastKnownCloudTs = parsedData._savedAt as string;
         } catch {
-            // Error de red — fallback al upsert directo sin check
-            lastKnownCloudTs = parsedData._savedAt as string;
-            supabase.from('app_state')
-                .upsert({ id: 'erp_master_vault_v1', data_json: parsedData })
-                .then(({ error }) => {
-                    if (error) console.error('⚠️ Error respaldando en la nube:', error.message);
-                });
+            // Error de red en la RPC — fallback con guarda (re-chequea conflicto y espera)
+            await guardedDirectUpsert(parsedData);
         }
     },
 

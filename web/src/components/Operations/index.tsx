@@ -124,6 +124,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
 
     const executeSubmit = () => {
         setIsConfirming(false);
+        const freshAccounts = useStore.getState().accounts;
 
         // NEW: Auto-create provider if typed but not selected
         let finalProvId = form.provId;
@@ -144,11 +145,11 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         if (amount <= 0 && tab === 'inventory') return; // Extra safety: prevent ₡0 spurious FIFO batches
 
         const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // Capture snapshot (use getState() to avoid stale closure)
-        let newAccounts = accounts;
+        let newAccounts = freshAccounts;
         let purchaseBatchId: string | undefined; // Captured so we can store it in the transaction
         let purchasedAssetId: string | undefined; // Captured when buying an asset
         if (tab === 'inventory') {
-            newAccounts = AccountingActions.purchaseInventory(accounts, amount, form.method as any);
+            newAccounts = AccountingActions.purchaseInventory(freshAccounts, amount, form.method as any);
 
             // Update Inventory Stock & Cost (FIFO Appending)
             if (form.itemId && quantity > 0) {
@@ -182,7 +183,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
                 }
             }
         } else {
-            newAccounts = AccountingActions.purchaseAsset(accounts, amount, form.method as any);
+            newAccounts = AccountingActions.purchaseAsset(freshAccounts, amount, form.method as any);
 
             // Asset Logic
             if (quantity > 0) {
@@ -464,9 +465,10 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 
     const executeSubmit = () => {
         setIsConfirming(false);
-        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // avoid stale closure
+        const freshAccounts = useStore.getState().accounts;
+        const prevLedger = { ...freshAccounts, ...getLedgerAccounts() }; // avoid stale closure
 
-        let accState = { ...accounts };
+        let accState = { ...freshAccounts };
 
         salesQueue.forEach(sale => {
             accState = AccountingActions.registerSale(accState, sale.totalAmount, sale.method as any, sale.splitAmounts);
@@ -713,6 +715,7 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
 
     const executeSubmit = () => {
         setIsConfirming(false);
+        const freshAccounts = useStore.getState().accounts;
         // NEW: Auto-create provider if typed but not selected
         let finalProvId = form.provId;
         if (!finalProvId && tempProvName.trim()) {
@@ -728,8 +731,8 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
         const amount = parseFloat(form.amount || '0');
         if (amount <= 0) return;
 
-        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // avoid stale closure
-        const newAccounts = AccountingActions.payExpense(accounts, amount, form.method as any);
+        const prevLedger = { ...freshAccounts, ...getLedgerAccounts() }; // avoid stale closure
+        const newAccounts = AccountingActions.payExpense(freshAccounts, amount, form.method as any);
         updateAccounts(() => newAccounts);
         reconcile(); // derive patrimonio from reduced cash
         addTransaction({
@@ -890,9 +893,13 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
 
     const executeSubmit = () => {
         setIsConfirming(false);
-        const exactTotalCost = ingredients.reduce((acc, ing) => acc + consumeInventoryFIFO(ing.item.id, parseFloat(ing.qty || '0')), 0);
+        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // avoid stale closure — must be before FIFO mutation
 
-        const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // avoid stale closure
+        // Consume each ingredient via FIFO and keep the EXACT cost drained per ingredient,
+        // so a later reversal restores that exact value (not the average cost, which drifts).
+        const consumedCosts = ingredients.map(ing => consumeInventoryFIFO(ing.item.id, parseFloat(ing.qty || '0')));
+        const exactTotalCost = consumedCosts.reduce((acc, c) => acc + c, 0);
+        const ingredientsWithCost = ingredients.map((ing, idx) => ({ ...ing, exactCost: consumedCosts[idx] }));
 
         // 2. Update Output Product
         const newBatch = {
@@ -948,8 +955,10 @@ export const ProductionModal = ({ isOpen, onClose }: any) => {
             date: new Date().toISOString(),
             amount: exactTotalCost,
             description: `Cocina: ${outputQty}x ${output.name} (usando ${ingText})`,
+            // cogs stored for audit trail only — getLedgerAccounts() ignores PRODUCTION type
+            // under periodic model; cost flows through inventory arrays via consumeInventoryFIFO
             cogs: exactTotalCost,
-            details: { outputId, outputName: output.name, outputQty, ingredients }
+            details: { outputId, outputName: output.name, outputQty, ingredients: ingredientsWithCost }
         });
 
         const freshState = useStore.getState();
@@ -1176,6 +1185,7 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
             const realStock = parseFloat(valStr || '0');
             const difference = item.stock - realStock; // Positive if stock was lost
             let financialDiff = 0;
+            let addedBatchId: string | undefined; // Captured for exact removal on void
 
             if (difference > 0) {
                 // Lost stock -> FIFO deduction
@@ -1193,6 +1203,7 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
                     stock: extraQty,
                     cost: avgCost
                 };
+                addedBatchId = newBatch.id;
 
                 const existingBatches = item.batches && item.batches.length > 0 ? [...item.batches] : [{
                     id: 'legacy-' + crypto.randomUUID(),
@@ -1217,7 +1228,9 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
             }
 
             if (difference !== 0) {
-                itemDetails.push({ id, name: item.name, sys: item.stock, real: realStock, financialDiff });
+                // sys/real are pre-count vs counted stock; batchId lets a void remove the exact
+                // batch appended for found stock. Both are consumed by revertTransaction.
+                itemDetails.push({ id, name: item.name, sys: item.stock, real: realStock, financialDiff, batchId: addedBatchId });
             }
         });
 
