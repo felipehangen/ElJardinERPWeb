@@ -4,6 +4,30 @@ import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Respon
 import { Search, Info, TrendingUp, TrendingDown, Download, FilterX, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatMoney, formatQty } from './ui';
 
+const WEEK_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4'];
+
+const getLocalDateStr = (date: Date): string => {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffset).toISOString().split('T')[0];
+};
+
+const getWeekKey = (localDateStr: string): string => {
+    const d = new Date(localDateStr + 'T12:00:00');
+    const dow = d.getDay();
+    const daysToMon = dow === 0 ? -6 : 1 - dow;
+    d.setDate(d.getDate() + daysToMon);
+    return d.toISOString().split('T')[0];
+};
+
+const formatWeekLabel = (weekKey: string): string => {
+    const start = new Date(weekKey + 'T12:00:00');
+    const end = new Date(weekKey + 'T12:00:00');
+    end.setDate(end.getDate() + 6);
+    const s = start.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' });
+    const e = end.toLocaleDateString('es-CR', { day: 'numeric', month: 'short' });
+    return `${s} – ${e}`;
+};
+
 const StatementRow = ({ title, value, onClick, selected, type = 'normal' }: any) => {
     const isNegative = type === 'deduction';
     const isTotal = type === 'total' || type === 'grand-total';
@@ -58,10 +82,22 @@ export const Analysis = () => {
     );
 
     // Main Tab State
-    const [activeTab, setActiveTab] = useState<'estado' | 'tendencia' | 'top'>('estado');
+    const [activeTab, setActiveTab] = useState<'estado' | 'tendencia' | 'top' | 'semanal'>('estado');
 
     // Income Statement State
     const [statementFilter, setStatementFilter] = useState<'Ventas' | 'Costos' | 'Gastos' | 'Otros Ingresos' | 'Otros Gastos' | null>(null);
+
+    // Weekly trend state
+    const [activeWeeks, setActiveWeeks] = useState<string[]>([]);
+    const [weekMetric, setWeekMetric] = useState<'ventas' | 'utilidad'>('ventas');
+
+    const toggleWeek = (weekKey: string) => {
+        setActiveWeeks(prev =>
+            prev.includes(weekKey)
+                ? prev.filter(w => w !== weekKey)
+                : prev.length < 6 ? [...prev, weekKey] : prev
+        );
+    };
 
     // Income Statement Calculations (Using global ledger calculator directly)
     const ledger = useMemo(() => useStore.getState().getLedgerAccounts(), [transactions]);
@@ -246,6 +282,58 @@ export const Analysis = () => {
         });
         return Array.from(prodMap.values()).sort((a, b) => b.qty - a.qty);
     }, [transactions]);
+
+    const availableWeeks = useMemo(() => {
+        const weekMap = new Map<string, { key: string; label: string; ventas: number }>();
+        transactions.filter(t => t.status !== 'VOIDED').forEach(t => {
+            const localDate = getLocalDateStr(new Date(t.date));
+            const weekKey = getWeekKey(localDate);
+            if (!weekMap.has(weekKey)) weekMap.set(weekKey, { key: weekKey, label: formatWeekLabel(weekKey), ventas: 0 });
+            if (t.type === 'SALE') weekMap.get(weekKey)!.ventas += t.amount;
+        });
+        return Array.from(weekMap.values())
+            .filter(w => w.ventas > 0)
+            .sort((a, b) => b.key.localeCompare(a.key));
+    }, [transactions]);
+
+    const weekChartData = useMemo(() => {
+        const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+        const validTxs = transactions.filter(t => t.status !== 'VOIDED');
+        const wd: Record<string, Record<number, { ventas: number; utilidad: number }>> = {};
+        activeWeeks.forEach(wk => {
+            wd[wk] = {};
+            for (let i = 0; i < 7; i++) wd[wk][i] = { ventas: 0, utilidad: 0 };
+        });
+        validTxs.forEach(t => {
+            const localDate = getLocalDateStr(new Date(t.date));
+            const wk = getWeekKey(localDate);
+            if (!activeWeeks.includes(wk)) return;
+            const dow = (new Date(localDate + 'T12:00:00').getDay() + 6) % 7;
+            const d = wd[wk][dow];
+            if (t.type === 'SALE') { d.ventas += t.amount; d.utilidad += t.amount - (t.cogs || 0); }
+            else if (t.type === 'EXPENSE') { d.utilidad -= t.amount; }
+        });
+        return DOW_LABELS.map((label, i) => {
+            const row: Record<string, any> = { dow: label };
+            activeWeeks.forEach(wk => { row[wk] = wd[wk]?.[i]?.[weekMetric] ?? 0; });
+            return row;
+        });
+    }, [activeWeeks, transactions, weekMetric]);
+
+    const weekSummaries = useMemo(() => {
+        const validTxs = transactions.filter(t => t.status !== 'VOIDED');
+        return activeWeeks.map(weekKey => {
+            let ventas = 0, egresos = 0, costos = 0;
+            validTxs.forEach(t => {
+                if (getWeekKey(getLocalDateStr(new Date(t.date))) !== weekKey) return;
+                if (t.type === 'SALE') ventas += t.amount;
+                else if (t.type === 'EXPENSE') egresos += t.amount;
+                else if (t.type === 'ADJUSTMENT' && !t.voidingTxId && t.details?.itemsAdjusted !== undefined)
+                    costos += t.cogs ?? t.amount;
+            });
+            return { weekKey, ventas, egresos, costos, utilidad: ventas - costos - egresos };
+        });
+    }, [activeWeeks, transactions]);
 
     const activeTxs = chartData.find(d => d.date === selectedDate)?.txs || [];
 
@@ -441,11 +529,17 @@ export const Analysis = () => {
                 >
                     Tendencia Diaria
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('top')}
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'top' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Más Vendidos
+                </button>
+                <button
+                    onClick={() => setActiveTab('semanal')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'semanal' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Tendencia Semanal
                 </button>
             </div>
 
@@ -722,6 +816,202 @@ export const Analysis = () => {
                         </div>
                     )}
 
+                </div>
+            )}
+
+            {/* Weekly Trend Section */}
+            {activeTab === 'semanal' && (
+                <div className="animate-in fade-in zoom-in-95 duration-200 space-y-4">
+
+                    {/* Week picker */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="font-bold text-gray-900">Seleccionar semanas</h3>
+                                <p className="text-xs text-gray-400 mt-0.5">{activeWeeks.length} seleccionada{activeWeeks.length !== 1 ? 's' : ''} · máximo 6</p>
+                            </div>
+                            {activeWeeks.length > 0 && (
+                                <button onClick={() => setActiveWeeks([])} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                                    Limpiar todo
+                                </button>
+                            )}
+                        </div>
+                        {availableWeeks.length === 0 ? (
+                            <p className="text-sm text-gray-400 py-4 text-center">No hay semanas con ventas registradas.</p>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {availableWeeks.map(wk => {
+                                    const colorIdx = activeWeeks.indexOf(wk.key);
+                                    const isSelected = colorIdx >= 0;
+                                    const isDisabled = !isSelected && activeWeeks.length >= 6;
+                                    return (
+                                        <button
+                                            key={wk.key}
+                                            onClick={() => toggleWeek(wk.key)}
+                                            disabled={isDisabled}
+                                            className={`flex flex-col px-3.5 py-2.5 rounded-2xl border text-left transition-all ${
+                                                isSelected
+                                                    ? 'border-transparent text-white shadow-md scale-105'
+                                                    : isDisabled
+                                                        ? 'border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed'
+                                                        : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white hover:scale-105'
+                                            }`}
+                                            style={isSelected ? { backgroundColor: WEEK_COLORS[colorIdx], borderColor: WEEK_COLORS[colorIdx] } : {}}
+                                        >
+                                            <span className="text-xs font-bold whitespace-nowrap">{wk.label}</span>
+                                            <span className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>
+                                                ₡{formatMoney(wk.ventas)}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {activeWeeks.length === 0 ? (
+                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-14 text-center">
+                            <TrendingUp size={40} className="mx-auto text-gray-200 mb-4" strokeWidth={1.5} />
+                            <p className="text-gray-400 font-medium">Seleccioná semanas para comparar su tendencia</p>
+                            <p className="text-xs text-gray-300 mt-1">Podés elegir hasta 6 semanas a la vez</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Metric toggle */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setWeekMetric('ventas')}
+                                    className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
+                                        weekMetric === 'ventas' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+                                    }`}
+                                >
+                                    Ventas por día
+                                </button>
+                                <button
+                                    onClick={() => setWeekMetric('utilidad')}
+                                    className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
+                                        weekMetric === 'utilidad' ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+                                    }`}
+                                >
+                                    Utilidad por día
+                                </button>
+                            </div>
+
+                            {/* Line chart */}
+                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+                                <h3 className="font-semibold text-gray-900 mb-5">
+                                    {weekMetric === 'ventas' ? 'Ventas' : 'Utilidad Neta'} por día de la semana
+                                </h3>
+                                <div className="h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={weekChartData} margin={{ top: 10, right: 8, left: 4, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                                            <XAxis dataKey="dow" tick={{ fill: '#9CA3AF', fontSize: 13, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                            <YAxis
+                                                tickFormatter={v => v === 0 ? '0' : `₡${formatMoney(v)}`}
+                                                tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                                                axisLine={false} tickLine={false} width={74}
+                                            />
+                                            <Tooltip
+                                                formatter={(value: any, name: string) => {
+                                                    const wk = availableWeeks.find(w => w.key === name);
+                                                    const v = Number(value);
+                                                    return [v < 0 ? `-₡${formatMoney(Math.abs(v))}` : `₡${formatMoney(v)}`, wk?.label || name];
+                                                }}
+                                                contentStyle={{ borderRadius: '14px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.12)', fontSize: '12px', padding: '10px 14px' }}
+                                            />
+                                            <ReferenceLine y={0} stroke="#E5E7EB" strokeDasharray="4 4" />
+                                            {activeWeeks.map((weekKey, i) => (
+                                                <Line
+                                                    key={weekKey}
+                                                    type="monotone"
+                                                    dataKey={weekKey}
+                                                    stroke={WEEK_COLORS[i % WEEK_COLORS.length]}
+                                                    strokeWidth={2.5}
+                                                    dot={{ r: 4, fill: WEEK_COLORS[i % WEEK_COLORS.length], strokeWidth: 2, stroke: '#fff' }}
+                                                    activeDot={{ r: 6, strokeWidth: 0 }}
+                                                />
+                                            ))}
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                {/* Legend */}
+                                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-4 justify-center border-t border-gray-50 mt-2">
+                                    {activeWeeks.map((weekKey, i) => {
+                                        const wk = availableWeeks.find(w => w.key === weekKey);
+                                        return (
+                                            <span key={weekKey} className="flex items-center gap-1.5 text-[11px] text-gray-600 font-semibold">
+                                                <span className="w-5 h-0.5 rounded-full inline-block" style={{ backgroundColor: WEEK_COLORS[i] }} />
+                                                {wk?.label}
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Comparison table */}
+                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+                                    <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wide">Resumen por semana</h3>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-gray-100">
+                                                <th className="text-left px-5 py-3 text-[10px] text-gray-400 uppercase tracking-widest font-bold min-w-[130px]">Métrica</th>
+                                                {activeWeeks.map((weekKey, i) => {
+                                                    const wk = availableWeeks.find(w => w.key === weekKey);
+                                                    return (
+                                                        <th key={weekKey} className="text-right px-4 py-3 min-w-[140px]">
+                                                            <div className="flex items-center justify-end gap-1.5">
+                                                                <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: WEEK_COLORS[i] }} />
+                                                                <span className="text-[11px] font-bold text-gray-700 whitespace-nowrap">{wk?.label}</span>
+                                                            </div>
+                                                        </th>
+                                                    );
+                                                })}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(['ventas', 'costos', 'egresos', 'utilidad'] as const).map(metric => (
+                                                <tr key={metric} className={`border-b border-gray-50 last:border-0 ${metric === 'utilidad' ? 'bg-gray-50/80' : ''}`}>
+                                                    <td className={`px-5 py-3.5 ${metric === 'utilidad' ? 'font-bold text-gray-900' : 'text-gray-500 font-medium'} text-sm`}>
+                                                        {metric === 'costos' ? 'Costos (COGS)' :
+                                                         metric === 'egresos' ? 'Gastos Operativos' :
+                                                         metric === 'utilidad' ? 'Utilidad Neta' : 'Ventas'}
+                                                    </td>
+                                                    {weekSummaries.map((ws, i) => {
+                                                        const val = ws[metric];
+                                                        const prev = i > 0 ? weekSummaries[i - 1][metric] : null;
+                                                        const pct = prev !== null && prev !== 0 ? ((val - prev) / Math.abs(prev)) * 100 : null;
+                                                        const isDeduction = metric === 'costos' || metric === 'egresos';
+                                                        return (
+                                                            <td key={ws.weekKey} className="text-right px-4 py-3.5">
+                                                                <div className={`font-mono font-bold text-base ${
+                                                                    metric === 'utilidad'
+                                                                        ? val >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                                                                        : isDeduction ? 'text-rose-500' : 'text-gray-900'
+                                                                }`}>
+                                                                    {isDeduction && val > 0 ? '-' : ''}₡{formatMoney(Math.abs(val))}
+                                                                </div>
+                                                                {pct !== null && (
+                                                                    <div className={`text-[10px] font-bold mt-0.5 ${
+                                                                        (isDeduction ? pct < 0 : pct > 0) ? 'text-emerald-500' : 'text-rose-500'
+                                                                    }`}>
+                                                                        {pct > 0 ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}% vs ant.
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
