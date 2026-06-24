@@ -50,7 +50,7 @@ interface StoreActions {
     getLedgerAccounts: (startDate?: Date | null, endDate?: Date | null) => Accounts & { ventas: number, gastos: number, costos: number, otrosIngresos: number, otrosGastos: number };
     consumeInventoryFIFO: (itemId: string, quantityToConsume: number) => number; // Returns COGS
     simulateInventoryFIFO: (itemId: string, qty: number) => number;
-    revertTransaction: (txId: string) => void;
+    revertTransaction: (txId: string) => { ok: boolean; message?: string };
 
     // Derived-field reconciliation
     // Call after any operation that changes inventory[], assets[], banco, or caja_chica.
@@ -374,9 +374,9 @@ export const useStore = create<AppState & StoreActions>()(
                 const state = get();
                 const tx = state.transactions.find(t => t.id === txId);
 
-                if (!tx || tx.status === 'VOIDED' || tx.type === 'INITIALIZATION') return;
+                if (!tx || tx.status === 'VOIDED' || tx.type === 'INITIALIZATION') return { ok: false };
                 // Prevent voiding a contra-entry — reversal transactions must never be reversed.
-                if (tx.voidingTxId) return;
+                if (tx.voidingTxId) return { ok: false };
 
                 // Only banco and caja_chica are manually reversed here.
                 // inventario, activo_fijo, and patrimonio are DERIVED — they are
@@ -483,21 +483,26 @@ export const useStore = create<AppState & StoreActions>()(
                         break;
 
                     case 'PRODUCTION': {
-                        // Remove output stock from physical inventory.
-                        // Guard: if the output was already partially consumed, clamp to 0 rather
-                        // than letting stock go negative (which would silently corrupt the ledger).
+                        // The produced output must still be fully in stock to reverse cleanly. If part
+                        // of it was already consumed (sold and then counted out, or used as an ingredient),
+                        // restoring the ingredients in full while removing only the remaining output would
+                        // inflate inventory. Block the void and tell the user to fix it via a physical count.
                         if (tx.details?.outputName) {
-                            updatedInventory = updatedInventory.map(i => {
-                                if (!(tx.details.outputId ? i.id === tx.details.outputId : i.name === tx.details.outputName)) return i;
-                                const newStock = i.stock - tx.details.outputQty;
-                                if (newStock < 0) {
-                                    console.warn(
-                                        `revertTransaction PRODUCTION: output "${i.name}" stock is ${i.stock} ` +
-                                        `but reversal needs to remove ${tx.details.outputQty}. Clamping to 0.`
-                                    );
-                                }
-                                return { ...i, stock: Math.max(0, newStock) };
-                            });
+                            const outItem = updatedInventory.find(i =>
+                                tx.details.outputId ? i.id === tx.details.outputId : i.name === tx.details.outputName
+                            );
+                            const need = tx.details.outputQty || 0;
+                            if (outItem && outItem.stock < need) {
+                                return {
+                                    ok: false,
+                                    message: `No se puede anular esta producción: de "${outItem.name}" quedan ${outItem.stock} de ${need} unidades producidas (el resto ya se vendió o se ajustó). Corrige con una toma física en vez de anular.`,
+                                };
+                            }
+                            updatedInventory = updatedInventory.map(i =>
+                                (tx.details.outputId ? i.id === tx.details.outputId : i.name === tx.details.outputName)
+                                    ? { ...i, stock: i.stock - need }
+                                    : i
+                            );
                         }
                         // Restore ingredient stock via FIFO refund batches
                         if (tx.details?.ingredients) {
@@ -626,6 +631,8 @@ export const useStore = create<AppState & StoreActions>()(
                         transactions: [contraTx, ...state.transactions.map(t => t.id === txId ? voidedTx : t)]
                     };
                 });
+
+                return { ok: true };
             },
 
             importState: (newState) => set(() => newState),

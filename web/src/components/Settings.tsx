@@ -99,6 +99,7 @@ export const Settings = () => {
                     payload = await backupManager.restoreIndexedDBBackup(id);
                 }
                 importState(payload);
+                reconcile(); // recalcula inventario/activo_fijo/patrimonio desde los arrays físicos restaurados
                 alert("Sistema restaurado con éxito desde el respaldo automático.");
                 window.location.reload();
             }

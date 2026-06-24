@@ -822,7 +822,11 @@ export const Transactions = () => {
                             <button
                                 onClick={() => {
                                     if (window.confirm('🚨 ¿Estás seguro de anular esta transacción?\n\nEsta acción revertirá los movimientos de dinero y regresará el inventario a su estado anterior usando las reglas FIFO. Este proceso NO se puede deshacer.')) {
-                                        revertTransaction(selectedTx.id);
+                                        const result = revertTransaction(selectedTx.id);
+                                        if (result && !result.ok) {
+                                            if (result.message) alert(result.message);
+                                            return; // anulación bloqueada: no cerrar el detalle
+                                        }
                                         setSelectedTx(null);
                                     }
                                 }}
