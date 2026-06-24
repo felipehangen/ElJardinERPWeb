@@ -7,8 +7,9 @@
 // Zustand data, then hard-reload so the browser fetches the new HTML/JS.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { CLOUD_STORAGE_KEY } from '../store/cloudStorage';
+
 const CURRENT_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? 'dev';
-const ZUSTAND_STORAGE_KEY = 'jardin-erp-storage-v4';
 
 interface VersionInfo {
     version: string;
@@ -53,7 +54,7 @@ export async function checkForUpdate(): Promise<boolean> {
  */
 export function applyUpdate(): void {
     try {
-        localStorage.removeItem(ZUSTAND_STORAGE_KEY);
+        localStorage.removeItem(CLOUD_STORAGE_KEY);
     } catch { /* storage may be unavailable in some edge cases */ }
     window.location.reload();
 }

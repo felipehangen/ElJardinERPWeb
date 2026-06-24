@@ -51,11 +51,16 @@ export const cloudStorage: StateStorage = {
 
         // 2. Intentar traer de la nube de forma asíncrona (Silencioso)
         try {
-            const { data, error } = await supabase
+            const TIMEOUT_MS = 8000;
+            const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+                setTimeout(() => resolve({ data: null, error: new Error('Supabase timeout') }), TIMEOUT_MS)
+            );
+            const queryPromise = supabase
                 .from('app_state')
                 .select('data_json')
                 .eq('id', 'erp_master_vault_v1')
                 .single();
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
             if (!error && data?.data_json) {
                 const cloudJson = data.data_json as Record<string, unknown>;
@@ -109,6 +114,16 @@ export const cloudStorage: StateStorage = {
         // 1. Guardar de forma ultra-rápida y síncrona en el disco local
         localStorage.setItem(name, withTimestamp);
 
+        // 1b. Guard: si el estado no está inicializado, no escribir en la nube.
+        // Zustand llama setItem con el estado inicial (initialized: false) antes de
+        // que getItem termine de hidratar desde Supabase. Sin este guard, esa
+        // escritura vacía sobrescribiría los datos de producción en la nube.
+        const appState = parsedData?.state as Record<string, unknown> | undefined;
+        if (!appState?.initialized) {
+            console.warn('⚠️ setItem: estado no inicializado — omitiendo escritura a la nube');
+            return;
+        }
+
         // 2. Empujar a la nube via RPC atómica con check de concurrencia optimista
         try {
             const { data: result, error } = await supabase.rpc('safe_save_app_state', {
@@ -119,11 +134,11 @@ export const cloudStorage: StateStorage = {
             if (error) {
                 // RPC no disponible (ej. primera versión pre-migración) → fallback directo
                 console.warn('safe_save_app_state no disponible, usando upsert directo:', error.message);
+                lastKnownCloudTs = parsedData._savedAt as string;
                 supabase.from('app_state')
                     .upsert({ id: 'erp_master_vault_v1', data_json: parsedData })
                     .then(({ error: e }) => {
                         if (e) console.error('⚠️ Error respaldando en la nube:', e.message);
-                        else lastKnownCloudTs = parsedData._savedAt as string;
                     });
                 return;
             }
@@ -141,11 +156,11 @@ export const cloudStorage: StateStorage = {
             lastKnownCloudTs = parsedData._savedAt as string;
         } catch {
             // Error de red — fallback al upsert directo sin check
+            lastKnownCloudTs = parsedData._savedAt as string;
             supabase.from('app_state')
                 .upsert({ id: 'erp_master_vault_v1', data_json: parsedData })
                 .then(({ error }) => {
                     if (error) console.error('⚠️ Error respaldando en la nube:', error.message);
-                    else lastKnownCloudTs = parsedData._savedAt as string;
                 });
         }
     },

@@ -1396,7 +1396,7 @@ export const AssetCountModal = ({ isOpen, onClose }: any) => {
             amount: Math.abs(diff),
             description: `Ajuste de Activos (Dif: ${diff > 0 ? '-' : '+'}₡${formatMoney(Math.abs(diff))})`,
             cogs: diff,
-            details: { counts, diff, itemDetails }
+            details: { counts, diff, assetDiff: diff, itemDetails }
         });
 
         onClose();

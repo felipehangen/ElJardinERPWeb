@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { cloudStorage } from './cloudStorage';
+import { cloudStorage, CLOUD_STORAGE_KEY } from './cloudStorage';
 import { INITIAL_STATE } from '../types';
 import type { AppState, Accounts, InventoryItem, Product, Transaction, Provider, ExpenseType, AssetItem, Location } from '../types';
 
@@ -166,12 +166,14 @@ export const useStore = create<AppState & StoreActions>()(
                 );
                 const cashOtrosIngresos = cashAdjTxs.reduce((acc, t) => {
                     const diff = t.details?.diffCaja ?? t.details?.diffBanco;
-                    const isGain = diff !== undefined ? diff < 0 : t.description.includes('+');
+                    if (diff === undefined) return acc; // unknown — skip to avoid misclassification
+                    const isGain = diff < 0;
                     return isGain ? acc + t.amount : acc;
                 }, 0);
                 const cashOtrosGastos = cashAdjTxs.reduce((acc, t) => {
                     const diff = t.details?.diffCaja ?? t.details?.diffBanco;
-                    const isLoss = diff !== undefined ? diff > 0 : !t.description.includes('+');
+                    if (diff === undefined) return acc; // unknown — skip to avoid misclassification
+                    const isLoss = diff > 0;
                     return isLoss ? acc + t.amount : acc;
                 }, 0);
 
@@ -181,11 +183,11 @@ export const useStore = create<AppState & StoreActions>()(
                     t.details?.diff !== undefined && t.details?.itemsAdjusted === undefined
                 );
                 const assetOtrosGastos = assetAdjTxs.reduce((acc, t) => {
-                    const diff = t.cogs ?? 0;
+                    const diff = t.details?.assetDiff ?? t.cogs ?? 0;
                     return diff > 0 ? acc + t.amount : acc;
                 }, 0);
                 const assetOtrosIngresos = assetAdjTxs.reduce((acc, t) => {
-                    const diff = t.cogs ?? 0;
+                    const diff = t.details?.assetDiff ?? t.cogs ?? 0;
                     return diff < 0 ? acc + t.amount : acc;
                 }, 0);
 
@@ -480,14 +482,9 @@ export const useStore = create<AppState & StoreActions>()(
                         }
                         // Restore ingredient stock via FIFO refund batches
                         if (tx.details?.ingredients) {
-                            const estimatedTotal = tx.details.ingredients.reduce((s: number, ing: any) =>
-                                s + parseFloat(ing.qty) * ing.item.cost, 0
-                            );
                             tx.details.ingredients.forEach((ing: any) => {
-                                const proportion = estimatedTotal > 0
-                                    ? (parseFloat(ing.qty) * ing.item.cost) / estimatedTotal
-                                    : 1 / tx.details.ingredients.length;
-                                reverseInventoryFIFO(ing.item.id, parseFloat(ing.qty), tx.amount * proportion);
+                                const exactCost = parseFloat(ing.qty) * ing.item.cost;
+                                reverseInventoryFIFO(ing.item.id, parseFloat(ing.qty), exactCost);
                             });
                         }
                         // inventario reconciled from the net physical change (should be ~zero)
@@ -578,7 +575,7 @@ export const useStore = create<AppState & StoreActions>()(
             reset: () => set(() => INITIAL_STATE),
         }),
         {
-            name: 'jardin-erp-storage-v4',
+            name: CLOUD_STORAGE_KEY,
             storage: createJSONStorage(() => cloudStorage),
             version: 13, // v13 = refactor: inventario/activo_fijo/patrimonio are derived fields
             migrate: (persistedState: any, version: number) => {
