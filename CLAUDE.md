@@ -40,6 +40,23 @@ Hard rules (a past incident traced directly to breaking these — see
   displayed version; the update-check uses the CI-written commit SHA).
 - `npm test` (vitest) must pass. Node/npm/gh are not on PATH by default.
 
+## Auth & access control
+
+The app is gated by **Supabase email/password auth** (`Login.tsx` → `signInWithPassword`;
+`App.tsx` renders only behind a live session). The database is locked to the
+owner account:
+
+- `app_state` RLS policy `owner_all_access` — `FOR ALL TO authenticated` with
+  `auth.uid() = '<owner uid>'`. Anon has no read/write/delete access.
+- `safe_save_app_state` is `SECURITY DEFINER` (bypasses RLS), so it ALSO checks
+  `auth.uid()` internally and `anon` EXECUTE is revoked — locked even if signups
+  get re-enabled.
+- Do not re-add permissive (`USING (true)`) policies or grant `anon` access. The
+  anon key is public (it ships in the bundle); RLS is the real lock.
+- Run `get_advisors(security)` after any DB change. Two known low-severity warns
+  remain by design: `safe_save_app_state` is authenticated-callable (intended,
+  uid-guarded) and leaked-password-protection is off (optional toggle).
+
 ## Sync model
 
 Cloud sync stores the whole state as one document, but `cloudStorage.ts`
