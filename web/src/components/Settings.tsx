@@ -1,9 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Button, Card, Input, Modal, formatMoney } from './ui';
-import { Download, Upload, Trash2, RotateCcw, FolderOpen, Wallet, CheckCircle2 } from 'lucide-react';
+import { Download, Upload, Trash2, RotateCcw, FolderOpen, Wallet, CheckCircle2, LogOut } from 'lucide-react';
 import { SystemAuditTest } from './SystemAuditTest';
 import { backupManager } from '../lib/backup';
+import { supabase } from '../lib/supabase';
 
 import { getAccountingDocumentation } from '../lib/accountingDocs';
 import packageJson from '../../package.json';
@@ -140,9 +141,21 @@ export const Settings = () => {
         setCapitalAmount('');
     };
 
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        window.location.reload();
+    };
+
     return (
         <Card className="max-w-xl mx-auto space-y-8">
-            <div>
+            <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg">Sesión</h3>
+                <Button variant="outline" onClick={handleLogout}>
+                    <LogOut className="mr-2" size={18} /> Cerrar sesión
+                </Button>
+            </div>
+
+            <div className="pt-8 border-t">
                 <h3 className="font-bold text-lg mb-4">Gestión de Datos</h3>
                 <div className="flex gap-4">
                     <Button onClick={handleBackup} className="flex-1 bg-sky-600 hover:bg-sky-700">

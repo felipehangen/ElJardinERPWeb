@@ -1,20 +1,32 @@
 import { useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface LoginProps {
     onLogin: () => void;
 }
 
 export const Login = ({ onLogin }: LoginProps) => {
-    const [user, setUser] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (user.toLowerCase().trim() === 'evar' && password === 'miamor') {
-            onLogin();
+        setError('');
+        setLoading(true);
+        // Real authentication against Supabase. The session it returns is what
+        // makes every cloud read/write pass row-level security — this is the
+        // actual lock on the database, not a client-side flag.
+        const { error: authError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+        });
+        setLoading(false);
+        if (authError) {
+            setError('Correo o contraseña incorrectos.');
         } else {
-            setError('Usuario o contraseña incorrectos.');
+            onLogin();
         }
     };
 
@@ -28,13 +40,13 @@ export const Login = ({ onLogin }: LoginProps) => {
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Usuario Administrador</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Correo</label>
                         <input
-                            type="text"
-                            value={user}
-                            onChange={(e) => setUser(e.target.value)}
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-jardin-primary focus:border-transparent focus:outline-none transition-all"
-                            placeholder="Usuario"
+                            placeholder="correo@ejemplo.com"
                             autoComplete="username"
                         />
                     </div>
@@ -58,9 +70,10 @@ export const Login = ({ onLogin }: LoginProps) => {
 
                     <button
                         type="submit"
-                        className="w-full bg-jardin-primary text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-jardin-primary/30 hover:shadow-jardin-primary/50 transition-all active:scale-95 mt-6"
+                        disabled={loading}
+                        className="w-full bg-jardin-primary text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-jardin-primary/30 hover:shadow-jardin-primary/50 transition-all active:scale-95 mt-6 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        Ingresar a la Plataforma
+                        {loading ? 'Ingresando…' : 'Ingresar a la Plataforma'}
                     </button>
                 </form>
             </div>

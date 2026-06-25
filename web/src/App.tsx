@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from './store/useStore';
 import { forceRefreshFromCloud } from './store/cloudStorage';
+import { supabase } from './lib/supabase';
 import { Onboarding } from './components/Onboarding';
 import { Login } from './components/Login';
 import { Layout } from './components/Layout';
@@ -17,9 +18,8 @@ import { checkForUpdate, applyUpdate } from './lib/versionCheck';
 
 export default function App() {
   const initialized = useStore((state) => state.initialized);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('erp_auth_token') === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [tab, setTab] = useState('ops'); // ops, cats, reps, anls, txs, sets
   const [modal, setModal] = useState<string | null>(null);
   const [backupToast, setBackupToast] = useState(false);
@@ -34,6 +34,21 @@ export default function App() {
     const unsub = useStore.persist.onFinishHydration(() => setIsHydrated(true));
     setIsHydrated(useStore.persist.hasHydrated());
     return unsub;
+  }, []);
+
+  // Real auth gate: the app only renders behind a live Supabase session, and that
+  // session is what makes every cloud read/write pass row-level security.
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setIsAuthenticated(!!data.session);
+      setAuthChecked(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setIsAuthenticated(!!session);
+    });
+    return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
 
   const syncFromCloud = useCallback(async () => {
@@ -52,6 +67,11 @@ export default function App() {
       setIsSyncing(false);
     }
   }, []); // stable — uses ref for guard, no deps needed
+
+  // Once signed in, pull the latest cloud state with the authenticated session.
+  useEffect(() => {
+    if (isAuthenticated) syncFromCloud();
+  }, [isAuthenticated, syncFromCloud]);
 
   // Auto-sync whenever the user returns to this tab
   useEffect(() => {
@@ -126,9 +146,14 @@ export default function App() {
   }, [initialized]);
 
   const handleLogin = () => {
-    localStorage.setItem('erp_auth_token', 'true');
+    // Supabase already established the session in <Login>; onAuthStateChange will
+    // also fire, but set immediately so the UI advances without a round-trip.
     setIsAuthenticated(true);
   };
+
+  if (!authChecked) {
+    return <div className="min-h-screen bg-jardin-bg" />; // brief: restoring session
+  }
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
