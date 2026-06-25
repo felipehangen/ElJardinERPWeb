@@ -9,6 +9,42 @@ export const CLOUD_STORAGE_KEY = 'jardin-erp-storage-v4';
 // between our last load and this save attempt.
 let lastKnownCloudTs: string | undefined;
 
+type PersistedBlob = Record<string, any>;
+
+// Union-merge the transaction logs of two persisted blobs by transaction id.
+//
+// Cloud sync stores the whole state as one document, so a plain last-write-wins
+// overwrite can DROP transactions entered concurrently on another tab/device.
+// This merges so no transaction is lost: `base` provides all non-transaction
+// state (pass the blob that should win for accounts/catalogs — normally the
+// newer one), and any transaction present in `other` but missing from `base` is
+// added. For an id in both copies, the version that has progressed to VOIDED /
+// carries a voidingTxId wins (voiding is forward-only). Derived fields
+// (cash/inventario/patrimonio) are recomputed by reconcile() afterwards.
+//
+// NOTE: union-by-id has no tombstones, so a transaction HARD-DELETED from one
+// copy can be resurrected from a stale other copy. Removal in this app is done
+// by VOIDING (a mutation this merge handles correctly), never deletion — do not
+// hard-delete transaction rows while clients may still hold stale copies.
+export function mergeTransactionLogs(base: PersistedBlob, other: PersistedBlob): PersistedBlob {
+    const baseTxs = base?.state?.transactions;
+    const otherTxs = other?.state?.transactions;
+    if (!Array.isArray(baseTxs) || !Array.isArray(otherTxs)) return base;
+
+    const isVoided = (t: any) => t?.status === 'VOIDED' || !!t?.voidingTxId;
+    const byId = new Map<string, any>();
+    for (const t of baseTxs) if (t?.id) byId.set(t.id, t);
+    for (const t of otherTxs) {
+        if (!t?.id) continue;
+        const existing = byId.get(t.id);
+        if (!existing) { byId.set(t.id, t); continue; }
+        if (isVoided(t) && !isVoided(existing)) byId.set(t.id, t); // keep the voided version
+    }
+    const merged = Array.from(byId.values())
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return { ...base, state: { ...base.state, transactions: merged } };
+}
+
 // Force-fetches from Supabase, bypassing the _savedAt timestamp guard.
 // Writes result to localStorage so the next rehydrate() picks it up.
 // Returns true if the cloud data was successfully fetched and stored.
@@ -21,7 +57,14 @@ export async function forceRefreshFromCloud(): Promise<boolean> {
             .single();
 
         if (!error && data?.data_json) {
-            const cloudData = data.data_json as Record<string, unknown>;
+            let cloudData = data.data_json as Record<string, any>;
+            // Recover any transactions this client holds locally that the cloud
+            // copy is missing (e.g. an entry whose save lost an optimistic-lock
+            // conflict) instead of dropping them on a forced refresh.
+            try {
+                const localRaw = localStorage.getItem(CLOUD_STORAGE_KEY);
+                if (localRaw) cloudData = mergeTransactionLogs(cloudData, JSON.parse(localRaw));
+            } catch { /* malformed local — fall back to cloud as-is */ }
             lastKnownCloudTs = cloudData._savedAt as string | undefined;
             localStorage.setItem(CLOUD_STORAGE_KEY, JSON.stringify(cloudData));
             return true;
@@ -99,32 +142,43 @@ export const cloudStorage: StateStorage = {
             const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
             if (!error && data?.data_json) {
-                const cloudJson = data.data_json as Record<string, unknown>;
+                const cloudJson = data.data_json as Record<string, any>;
                 const cloudTs = cloudJson._savedAt as string | undefined;
 
                 // Always record the cloud timestamp — even if we end up using
                 // local — so setItem's conflict check has a valid baseline.
                 lastKnownCloudTs = cloudTs;
 
-                // Parse local timestamp (may not exist in old saves)
+                // Parse local copy (may not exist / may be malformed in old saves)
+                let localObj: Record<string, any> | undefined;
                 let localTs: string | undefined;
                 if (localRaw) {
                     try {
-                        const parsed = JSON.parse(localRaw) as Record<string, unknown>;
-                        localTs = parsed._savedAt as string | undefined;
+                        localObj = JSON.parse(localRaw);
+                        localTs = localObj?._savedAt as string | undefined;
                     } catch { /* malformed local — treat as absent */ }
                 }
 
-                // Only trust the cloud copy when it is STRICTLY newer than local.
-                // If local has no timestamp (legacy save) and cloud does → cloud wins.
-                // If cloud has no timestamp → ignore (pre-timestamp cloud save).
-                if (cloudTs && (!localTs || cloudTs > localTs)) {
-                    console.log('☁️ Datos más recientes encontrados en la nube. Sincronizando...');
+                if (localObj) {
+                    // The strictly-newer blob (default cloud) wins for non-transaction
+                    // state; then UNION both transaction logs so neither side's entries
+                    // are lost to last-write-wins. Derived fields are recomputed by
+                    // reconcile() on rehydrate, so stale accounts in `base` self-correct.
+                    const cloudIsNewer = !!cloudTs && (!localTs || cloudTs > localTs);
+                    const base = cloudIsNewer ? cloudJson : localObj;
+                    const other = cloudIsNewer ? localObj : cloudJson;
+                    const mergedString = JSON.stringify(mergeTransactionLogs(base, other));
+                    if (cloudIsNewer) console.log('☁️ Datos más recientes en la nube. Sincronizando (merge de transacciones)...');
+                    localStorage.setItem(name, mergedString);
+                    return mergedString;
+                }
+
+                // No usable local copy → use cloud as-is.
+                if (cloudTs) {
                     const cloudString = JSON.stringify(cloudJson);
                     localStorage.setItem(name, cloudString);
                     return cloudString;
                 }
-                // Local is same age or newer — keep it.
             }
         } catch (e) {
             console.error('No se pudo conectar a la nube:', e);
