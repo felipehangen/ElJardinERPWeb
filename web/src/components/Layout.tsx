@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { cn } from './ui';
-import { LayoutDashboard, Package, BarChart3, Settings as SettingsIcon, Menu, X, PieChart, List, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Package, BarChart3, Settings as SettingsIcon, Menu, X, PieChart, List, RefreshCw, LogOut } from 'lucide-react';
 import packageJson from '../../package.json';
+import { supabase } from '../lib/supabase';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -13,6 +14,11 @@ interface LayoutProps {
 
 export const Layout = ({ children, currentTab, onTabChange, onSync, isSyncing }: LayoutProps) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        window.location.reload();
+    };
 
     const NavItem = ({ id, icon, label }: any) => (
         <button
@@ -54,6 +60,14 @@ export const Layout = ({ children, currentTab, onTabChange, onSync, isSyncing }:
                         <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar nube'}</span>
                     </button>
                 )}
+                <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-all text-sm font-medium"
+                    title="Cerrar sesión"
+                >
+                    <LogOut size={18} />
+                    <span>Cerrar sesión</span>
+                </button>
             </aside>
 
             {/* Mobile Header */}
@@ -70,6 +84,9 @@ export const Layout = ({ children, currentTab, onTabChange, onSync, isSyncing }:
                             <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
                         </button>
                     )}
+                    <button onClick={handleSignOut} className="p-2 text-gray-400 hover:text-rose-600" title="Cerrar sesión">
+                        <LogOut size={18} />
+                    </button>
                     <button onClick={() => setSidebarOpen(true)} className="p-2"><Menu /></button>
                 </div>
             </header>
