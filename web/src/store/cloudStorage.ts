@@ -32,6 +32,14 @@ export function mergeTransactionLogs(base: PersistedBlob, other: PersistedBlob):
     if (!Array.isArray(baseTxs) || !Array.isArray(otherTxs)) return base;
 
     const isVoided = (t: any) => t?.status === 'VOIDED' || !!t?.voidingTxId;
+    // Deprecated equity "plug" correctivos (isCorrectivo without isReconciliation)
+    // were hard-deleted in the 2026-06 cleanup. Because union-by-id has no
+    // tombstones, a client with stale localStorage would otherwise resurrect them
+    // and reopen Diferencia. They are deprecated for good, so we drop them from any
+    // merge result. The single legitimate reconciliation entry carries
+    // isReconciliation:true and is NOT affected.
+    const isDeprecatedPlug = (t: any) =>
+        t?.details?.isCorrectivo === true && t?.details?.isReconciliation !== true;
     const byId = new Map<string, any>();
     for (const t of baseTxs) if (t?.id) byId.set(t.id, t);
     for (const t of otherTxs) {
@@ -41,6 +49,7 @@ export function mergeTransactionLogs(base: PersistedBlob, other: PersistedBlob):
         if (isVoided(t) && !isVoided(existing)) byId.set(t.id, t); // keep the voided version
     }
     const merged = Array.from(byId.values())
+        .filter(t => !isDeprecatedPlug(t))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return { ...base, state: { ...base.state, transactions: merged } };
 }

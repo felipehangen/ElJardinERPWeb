@@ -49,6 +49,22 @@ describe('mergeTransactionLogs — union transaction logs by id', () => {
         expect(mergeTransactionLogs(base, other).state.transactions[0].id).toBe('new')
     })
 
+    it('does NOT resurrect a deprecated plug correctivo from a stale client', () => {
+        const cloud = blob([{ id: 'real', date: '2026-06-09T00:00:00Z' }]) // clean cloud
+        const staleLocal = blob([
+            { id: 'real', date: '2026-06-09T00:00:00Z' },
+            { id: 'plug1', date: '2026-06-21T00:00:00Z', cogs: 34786.71, details: { isCorrectivo: true, itemsAdjusted: {} } },
+        ])
+        const m = mergeTransactionLogs(cloud, staleLocal)
+        expect(ids(m)).toEqual(['real'])
+    })
+
+    it('keeps the legitimate reconciliation entry (isReconciliation) through a merge', () => {
+        const base = blob([{ id: 'real', date: '2026-06-09T00:00:00Z' }])
+        const other = blob([{ id: 'recon', date: '2026-06-25T00:00:00Z', cogs: 29045.31, details: { isCorrectivo: true, isReconciliation: true, itemsAdjusted: {} } }])
+        expect(ids(mergeTransactionLogs(base, other))).toEqual(['real', 'recon'].sort())
+    })
+
     it('is safe when a side has no transactions array', () => {
         const base = blob([{ id: 'a', date: '2026-06-01T00:00:00Z' }])
         const broken = { _savedAt: 'x', state: {} }
