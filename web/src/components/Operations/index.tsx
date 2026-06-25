@@ -207,12 +207,13 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         const targetProvider = providers?.find(p => p.id === (finalProvId || form.provId))?.name || tempProvName;
 
         updateAccounts(() => newAccounts);
-        reconcile(); // derive inventario, activo_fijo, patrimonio from physical arrays
         addTransaction({
             id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount,
             description: `Compra ${tab === 'inventory' ? 'Inventario' : 'Activo'}: ${form.itemName} (x${formatQty(quantity)})`,
             details: { itemId: form.itemId, itemName: form.itemName, batchId: purchaseBatchId, assetId: purchasedAssetId, quantity, method: form.method, type: tab, providerName: targetProvider }
         });
+        // reconcile AFTER the transaction is in the log — cash is derived from the ledger.
+        reconcile(); // derive cash, inventario, activo_fijo, patrimonio
 
         const freshState = useStore.getState();
         const currLedger = { ...freshState.accounts, ...freshState.getLedgerAccounts() };
@@ -734,7 +735,6 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
         const prevLedger = { ...freshAccounts, ...getLedgerAccounts() }; // avoid stale closure
         const newAccounts = AccountingActions.payExpense(freshAccounts, amount, form.method as any);
         updateAccounts(() => newAccounts);
-        reconcile(); // derive patrimonio from reduced cash
         addTransaction({
             id: crypto.randomUUID(),
             type: 'EXPENSE',
@@ -743,6 +743,8 @@ export const ExpenseModal = ({ isOpen, onClose }: any) => {
             description: `Gasto (${form.typeName})`,
             details: { typeName: form.typeName, method: form.method, detail: form.detail.trim(), provName: finalProvId ? providers.find(p => p.id === finalProvId)?.name || tempProvName : 'N/A' }
         });
+        // reconcile AFTER the transaction is in the log — cash is derived from the ledger.
+        reconcile(); // derive cash + patrimonio from the updated ledger
 
         const freshState = useStore.getState();
         const currLedger = { ...freshState.accounts, ...freshState.getLedgerAccounts() };

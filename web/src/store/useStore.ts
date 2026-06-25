@@ -62,6 +62,97 @@ interface StoreActions {
     reset: () => void;
 }
 
+// ── Cash derivation: the transaction ledger is the single source of truth ─────
+// banco / caja_chica are DERIVED from the log, exactly like inventario/activo_fijo
+// are derived from their arrays. This makes them self-healing: a sync conflict,
+// multi-tab overwrite, or backup restore can corrupt the stored running balance,
+// but the next reconcile() recomputes the correct value from the immutable log.
+//
+// Replay is CHRONOLOGICAL (transactions are stored newest-first, so we sort by
+// date) because a cash audit is an ABSOLUTE re-anchor to the verified physical
+// count, not a delta — order relative to other movements matters.
+export function deriveCashFromLedger(transactions: Transaction[]): { banco: number; caja_chica: number } {
+    const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let banco = 0;
+    let caja = 0;
+    for (const tx of sorted) {
+        // Skip a reversed original AND its [ANULACIÓN] contra — together they net to
+        // zero, i.e. the transaction "never happened" as far as cash is concerned.
+        if (tx.status === 'VOIDED') continue;
+        if (tx.voidingTxId) continue;
+
+        const amt = tx.amount || 0;
+        const method = tx.details?.method ?? tx.details?.account;
+        const split = tx.details?.splitAmounts;
+
+        switch (tx.type) {
+            case 'INITIALIZATION':
+                if (tx.details?.isInitialOnboarding) {
+                    caja += tx.details.cash || 0;
+                    banco += tx.details.bank || 0;
+                } else if (method === 'caja_chica') {
+                    caja += amt;
+                } else if (method === 'banco') {
+                    banco += amt;
+                } else {
+                    // Legacy capital injection with no structured method → infer from description.
+                    const d = (tx.description || '').toLowerCase();
+                    if (d.includes('caja')) caja += amt;
+                    else if (d.includes('banco')) banco += amt;
+                }
+                break;
+
+            case 'SALE':
+                if (method === 'split' && split) {
+                    caja += split.caja_chica || 0;
+                    banco += split.banco || 0;
+                } else if (method === 'caja_chica') {
+                    caja += amt;
+                } else if (method === 'banco') {
+                    banco += amt;
+                }
+                break;
+
+            case 'PURCHASE':
+            case 'EXPENSE':
+                if (method === 'split' && split) {
+                    caja -= split.caja_chica || 0;
+                    banco -= split.banco || 0;
+                } else if (method === 'caja_chica') {
+                    caja -= amt;
+                } else if (method === 'banco') {
+                    banco -= amt;
+                }
+                break;
+
+            case 'PRODUCTION':
+                break; // pure inventory exchange, no cash
+
+            case 'ADJUSTMENT': {
+                const acct = tx.details?.account ?? tx.details?.method;
+                if (acct === 'caja_chica' || acct === 'banco') {
+                    if (tx.details?.realVal !== undefined) {
+                        // Cash audit (modern): SET the account to the verified physical count.
+                        if (acct === 'caja_chica') caja = tx.details.realVal;
+                        else banco = tx.details.realVal;
+                    } else {
+                        // Cash audit (legacy, no realVal): apply the recorded delta.
+                        // diff = system − real (positive = loss), so the account moves by −diff.
+                        const diff = acct === 'caja_chica' ? tx.details?.diffCaja : tx.details?.diffBanco;
+                        if (diff !== undefined) {
+                            if (acct === 'caja_chica') caja -= diff;
+                            else banco -= diff;
+                        }
+                    }
+                }
+                // Inventory / asset physical-count adjustments do not move cash.
+                break;
+            }
+        }
+    }
+    return { banco: Number(banco.toFixed(2)), caja_chica: Number(caja.toFixed(2)) };
+}
+
 export const useStore = create<AppState & StoreActions>()(
     persist(
         (set, get) => ({
@@ -81,8 +172,11 @@ export const useStore = create<AppState & StoreActions>()(
                 const s = get();
                 const inventario = Number(s.inventory.reduce((sum, i) => sum + i.stock * i.cost, 0).toFixed(2));
                 const activo_fijo = Number(s.assets.reduce((sum, a) => sum + a.value, 0).toFixed(2));
-                const patrimonio = Number(((s.accounts.banco || 0) + (s.accounts.caja_chica || 0) + inventario + activo_fijo).toFixed(2));
-                set({ accounts: { ...s.accounts, inventario, activo_fijo, patrimonio, _isLedger: true } });
+                // banco / caja_chica are derived from the transaction ledger (self-healing),
+                // not trusted as stored running totals — see deriveCashFromLedger().
+                const { banco, caja_chica } = deriveCashFromLedger(s.transactions);
+                const patrimonio = Number((banco + caja_chica + inventario + activo_fijo).toFixed(2));
+                set({ accounts: { ...s.accounts, banco, caja_chica, inventario, activo_fijo, patrimonio, _isLedger: true } });
             },
 
             addInventoryItem: (item) => set((state) => ({ inventory: [...state.inventory, item] })),
@@ -641,6 +735,16 @@ export const useStore = create<AppState & StoreActions>()(
         {
             name: CLOUD_STORAGE_KEY,
             storage: createJSONStorage(() => cloudStorage),
+            // Self-heal on load: after hydrating from localStorage/cloud, re-derive
+            // cash + balance-sheet fields from the immutable transaction ledger so any
+            // drift introduced out-of-band (sync conflict, multi-tab overwrite, backup
+            // restore) is corrected automatically. Stored running balances are never
+            // trusted blindly — the ledger is the single source of truth.
+            onRehydrateStorage: () => (state) => {
+                if (state?.initialized && state.transactions?.length) {
+                    state.reconcile();
+                }
+            },
             version: 13, // v13 = refactor: inventario/activo_fijo/patrimonio are derived fields
             migrate: (persistedState: any, version: number) => {
                 let state = { ...persistedState };
