@@ -49,11 +49,19 @@ Physical count: caja ₡113,235, banco ₡315,834. We:
    cash shortfall (caja −18,115, banco −2,300);
 2. deleted the three phantom-COGS plug correctivos (they had inflated COGS by
    ~₡47k and masked the drift);
-3. recorded one honest reconciliation loss of **₡31,045.31** for the
+3. recorded one honest reconciliation loss of **₡29,045.31** for the
    accumulated shrinkage from the restore.
 
 Result: `Diferencia` = ₡0 for real reasons, COGS no longer distorted, and
-~₡51k of genuine losses now visible instead of hidden.
+~₡49k of genuine losses now visible instead of hidden.
+
+> Footnote: the reconciliation entry was first sized at ₡31,045.31 using the
+> *stored* `accounts.inventario` (₡280,691.05) — which was itself stale. On
+> first load of v1.1.4, `reconcile()` recomputed inventory from the array
+> (₡282,691.05, ₡2,000 higher) and the gap briefly reopened to ₡2,000. Lesson:
+> **size correctivos against values derived from the sources (the inventory
+> array, the ledger), never against the stored derived fields** — the exact
+> trap this fix was meant to eliminate.
 
 ### Operating rules going forward
 - **The transaction ledger is the single source of truth.** Every balance is
