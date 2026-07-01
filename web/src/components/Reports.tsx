@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
+import { DIFERENCIA_TOLERANCE } from '../lib/balanceGuard';
 import { Card, cn, Input, formatMoney, formatQty } from './ui';
 import { FileText, Box, Monitor, Wallet, X, Download } from 'lucide-react';
 // Format currency without cents
@@ -164,7 +165,7 @@ export const Reports = () => {
             csvContent += `Total Pasivos,0\n`;
             csvContent += `Capital Inicial,${initialCapital}\n`;
             csvContent += `Resultados Acumulados,${resultadosAcumulados}\n`;
-            if (Math.abs(conciliacion) >= 1) csvContent += `Diferencia por Conciliar,${conciliacion}\n`;
+            if (Math.abs(conciliacion) >= DIFERENCIA_TOLERANCE) csvContent += `Diferencia por Conciliar,${conciliacion}\n`;
             csvContent += `Total Patrimonio,${totalPatrimonio}\n`;
         } else if (tab === 'inventory') {
             filename = "Reporte_Inventario.csv";
@@ -384,7 +385,7 @@ export const Reports = () => {
                                 <div className="font-bold text-emerald-900 uppercase text-xs mb-1">Patrimonio (Lo que vale)</div>
                                 <Row label="Capital Inicial" value={initialCapital} />
                                 <Row label="Resultados Acumulados" value={resultadosAcumulados} color={resultadosAcumulados >= 0 ? 'text-green-600' : 'text-red-500'} />
-                                {Math.abs(conciliacion) >= 1 && (
+                                {Math.abs(conciliacion) >= DIFERENCIA_TOLERANCE && (
                                     <Row
                                         label="Diferencia por Conciliar ⚠"
                                         value={conciliacion}

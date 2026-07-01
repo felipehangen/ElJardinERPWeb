@@ -83,6 +83,10 @@ export function computeDiferencia(state: BalanceState): number {
     return Number(((accounts.patrimonio || 0) - (initialCapital + resultados)).toFixed(2));
 }
 
-// Threshold below which a gap is treated as floating-point / FIFO-vs-average
-// rounding noise rather than a real desync.
-export const DIFERENCIA_TOLERANCE = 1;
+// Threshold below which a gap is treated as noise rather than a real desync.
+// Physical counts value inventory at AVERAGE cost but book COGS at FIFO cost, so
+// each count leaves a few colones of unavoidable rounding that accumulate over
+// time (e.g. ~₡33 after a dozen counts). A genuine stale-array desync is orders
+// of magnitude larger (this bug reopened at ₡44,607), so ₡500 suppresses the
+// harmless noise while still catching any material clobber.
+export const DIFERENCIA_TOLERANCE = 500;
