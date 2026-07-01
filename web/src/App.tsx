@@ -28,6 +28,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState(false);
   const [conflictToast, setConflictToast] = useState(false);
+  const [balanceWarning, setBalanceWarning] = useState<number | null>(null);
   const isSyncingRef = useRef(false);
 
   useEffect(() => {
@@ -92,6 +93,21 @@ export default function App() {
     window.addEventListener('erp-cloud-conflict', handleConflict);
     return () => window.removeEventListener('erp-cloud-conflict', handleConflict);
   }, [syncFromCloud]);
+
+  // Balance guard: cloudStorage raises this when it's about to save an unbalanced
+  // state (Diferencia por Conciliar ≠ 0) — the fingerprint of a stale-array merge
+  // desyncing inventory from the transaction log. Surface it persistently so the
+  // user force-syncs before the drift spreads. Auto-clears when a later save balances.
+  useEffect(() => {
+    const handleBalance = (e: Event) => setBalanceWarning((e as CustomEvent<number>).detail);
+    const handleBalanceOk = () => setBalanceWarning(null);
+    window.addEventListener('erp-balance-warning', handleBalance);
+    window.addEventListener('erp-balance-ok', handleBalanceOk);
+    return () => {
+      window.removeEventListener('erp-balance-warning', handleBalance);
+      window.removeEventListener('erp-balance-ok', handleBalanceOk);
+    };
+  }, []);
 
   // ── Version check ────────────────────────────────────────────────────────
   // Checks on startup, on tab-focus, and every 5 minutes. When a new deploy
@@ -235,6 +251,23 @@ export default function App() {
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-amber-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-lg">⚠️</span>
           La nube fue actualizada externamente — sincronizando...
+        </div>
+      )}
+
+      {/* Balance-guard banner: persistent alarm when an unbalanced state was saved */}
+      {balanceWarning !== null && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-red-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold max-w-[92vw]">
+          <span className="text-lg">🚨</span>
+          <span>
+            Diferencia por Conciliar detectada (₡{balanceWarning.toLocaleString('es-CR')}). Posible
+            desincronización — sincroniza la nube y cierra otras pestañas/dispositivos.
+          </span>
+          <button
+            onClick={() => { setBalanceWarning(null); syncFromCloud(); }}
+            className="ml-1 shrink-0 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1"
+          >
+            Sincronizar
+          </button>
         </div>
       )}
     </Layout>

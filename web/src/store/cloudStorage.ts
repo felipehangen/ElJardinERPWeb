@@ -1,5 +1,6 @@
 import type { StateStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
+import { computeDiferencia, DIFERENCIA_TOLERANCE, type BalanceState } from '../lib/balanceGuard';
 
 export const CLOUD_STORAGE_KEY = 'jardin-erp-storage-v4';
 
@@ -222,6 +223,22 @@ export const cloudStorage: StateStorage = {
             console.warn('⚠️ setItem: estado no inicializado — omitiendo escritura a la nube');
             return;
         }
+
+        // 1c. Balance guard: alarm (do NOT block) if the state about to be saved is
+        // unbalanced. A non-zero Diferencia here is the fingerprint of a stale-array
+        // merge/restore that desynced inventory from the transaction log. We still
+        // save (blocking risks data loss and the write is not the corruptor), but we
+        // surface it loudly so the user can force-sync before the drift propagates.
+        try {
+            const diff = computeDiferencia(appState as unknown as BalanceState);
+            if (Math.abs(diff) >= DIFERENCIA_TOLERANCE) {
+                console.error(`🚨 Guardando estado DESBALANCEADO — Diferencia por Conciliar: ₡${diff}. ` +
+                    `Posible desincronización (otra pestaña/dispositivo o restauración). Sincroniza la nube y revisa Reportes.`);
+                window.dispatchEvent(new CustomEvent('erp-balance-warning', { detail: diff }));
+            } else {
+                window.dispatchEvent(new CustomEvent('erp-balance-ok'));
+            }
+        } catch { /* guard is advisory — never let it break a save */ }
 
         // 2. Empujar a la nube via RPC atómica con check de concurrencia optimista
         try {
