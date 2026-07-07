@@ -2,6 +2,7 @@ import type { StateStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { computeDiferencia, DIFERENCIA_TOLERANCE, type BalanceState } from '../lib/balanceGuard';
 import { auditInventoryAgainstLedger, totalDriftValue } from '../lib/inventoryLedger';
+import { announceSave } from '../lib/realtimeSync';
 
 export const CLOUD_STORAGE_KEY = 'jardin-erp-storage-v4';
 
@@ -162,6 +163,8 @@ async function guardedDirectUpsert(parsedData: Record<string, unknown>, baseline
         .upsert({ id: 'erp_master_vault_v1', data_json: parsedData });
     if (error) {
         console.error('⚠️ Error respaldando en la nube:', error.message);
+    } else {
+        announceSave(lastSelfWrittenTs); // ping a otras ventanas (fire-and-forget)
     }
 }
 
@@ -333,6 +336,7 @@ export const cloudStorage: StateStorage = {
 
                 // Escritura exitosa: nuestras escrituras posteriores parten de aquí.
                 lastSelfWrittenTs = parsedData._savedAt as string;
+                announceSave(lastSelfWrittenTs); // ping a otras ventanas (fire-and-forget)
             } catch {
                 // Error de red en la RPC — fallback con guarda (re-chequea conflicto y espera)
                 await guardedDirectUpsert(parsedData, baseline);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from './store/useStore';
 import { forceRefreshFromCloud } from './store/cloudStorage';
+import { initRealtimeSync } from './lib/realtimeSync';
 import { supabase } from './lib/supabase';
 import { Onboarding } from './components/Onboarding';
 import { Login } from './components/Login';
@@ -73,6 +74,14 @@ export default function App() {
   // Once signed in, pull the latest cloud state with the authenticated session.
   useEffect(() => {
     if (isAuthenticated) syncFromCloud();
+  }, [isAuthenticated, syncFromCloud]);
+
+  // Realtime: another window/device saved → pull it automatically (no manual 🔄).
+  // Broadcast never echoes to the sender, so we don't react to our own saves.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const cleanup = initRealtimeSync(() => { syncFromCloud(); });
+    return cleanup;
   }, [isAuthenticated, syncFromCloud]);
 
   // Auto-sync whenever the user returns to this tab
