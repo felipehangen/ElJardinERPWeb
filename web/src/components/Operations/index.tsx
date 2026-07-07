@@ -4,6 +4,7 @@ import { Button, Input, Modal, Combobox, cn, formatMoney, formatQty, normalizeNa
 import { Trash2 } from 'lucide-react';
 import { AccountingActions } from '../../lib/accounting';
 import { AccountingFeedback } from '../AccountingFeedback';
+import { summarizeInventoryCount } from '../../lib/inventoryCountSummary';
 
 // Shared Payment Selector
 const PaymentMethod = ({ value, onChange, showSplit = false }: any) => (
@@ -1137,6 +1138,7 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
     const [counts, setCounts] = useState<Record<string, string>>({});
     const [search, setSearch] = useState('');
     const [filterLocation, setFilterLocation] = useState('');
+    const [isConfirming, setIsConfirming] = useState(false);
 
     const filtered = inventory.filter(i => {
         const matchSearch = normalizeName(i.name).includes(normalizeName(search)) && !i.hidden;
@@ -1152,29 +1154,18 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
     // Ideally use useEffect, but for simplicity we rely on manual entry or placeholder.
     // Let's just track CHANGED values.
 
-    const getDiffValue = () => {
-        let totalSystemValue = 0;
-        let totalRealValue = 0;
-        let diff = 0;
-
-        Object.entries(counts).forEach(([id, valStr]) => {
-            const item = inventory.find(i => i.id === id);
-            if (item) {
-                const realStock = parseFloat(valStr || '0');
-                const sysVal = item.cost * item.stock;
-                const realVal = item.cost * realStock;
-
-                totalSystemValue += sysVal;
-                totalRealValue += realVal;
-                diff += (sysVal - realVal); // Positive = Loss (Missing)
-            }
-        });
-        return diff;
-    };
-
-    const diff = getDiffValue();
+    const summary = summarizeInventoryCount(counts, inventory);
+    const diff = -summary.totalValueDiff; // Positive = Loss (Missing)
 
     const handleSubmit = () => {
+        if (summary.itemsAdjusted === 0) {
+            onClose(); return;
+        }
+        setIsConfirming(true);
+    };
+
+    const executeSubmit = () => {
+        setIsConfirming(false);
         let exactTotalDiff = 0;
         let itemsAdjusted = 0;
         const itemDetails: any[] = [];
@@ -1259,7 +1250,8 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Toma de Inventario Físico">
+        <>
+        <Modal isOpen={isOpen && !isConfirming} onClose={onClose} title="Toma de Inventario Físico">
             <div className="flex flex-col h-[60vh]">
                 <div className="mb-4 flex flex-col sm:flex-row gap-2">
                     <Input
@@ -1344,6 +1336,26 @@ export const InventoryCountModal = ({ isOpen, onClose }: any) => {
                 </div>
             </div>
         </Modal>
+
+        <ConfirmDialog
+            isOpen={isConfirming}
+            onClose={() => setIsConfirming(false)}
+            onConfirm={executeSubmit}
+            title="Confirmar Toma Física"
+            data={[
+                { label: "Items Ajustados", value: `${summary.itemsAdjusted}` },
+                ...summary.items.map(i => ({
+                    label: i.name,
+                    value: `${formatQty(i.sys)} → ${formatQty(i.real)} (${i.qtyDiff > 0 ? 'sobrante' : 'faltante'} ${formatQty(Math.abs(i.qtyDiff))})`
+                })),
+                {
+                    label: "Valor del Ajuste (Estimado)",
+                    value: `${summary.isLoss ? '-' : '+'}₡${formatMoney(Math.abs(summary.totalValueDiff))} (${summary.isLoss ? 'Pérdida' : 'Ganancia'})`,
+                    highlight: true
+                }
+            ]}
+        />
+        </>
     );
 };
 
