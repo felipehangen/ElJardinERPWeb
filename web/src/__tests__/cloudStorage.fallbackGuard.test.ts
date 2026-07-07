@@ -36,19 +36,21 @@ beforeEach(() => {
 
 describe('cloudStorage fallback guard (#3)', () => {
     it('aborts the direct upsert when the cloud was updated externally since our last load', async () => {
-        // 1. Load: records lastKnownCloudTs = T1
-        h.cloudDoc.value = { data_json: { _savedAt: '2026-06-01T00:00:00.000Z' } }
-        await cloudStorage.getItem(KEY)
-
-        // 2. External update bumps the cloud to T2 (newer), and the RPC path fails
+        // 2. External update bumps the cloud to T2, and the RPC path fails.
         h.cloudDoc.value = { data_json: { _savedAt: '2026-06-02T00:00:00.000Z' } }
         h.rpcThrows.on = true
 
         let conflictFired = false
         window.addEventListener('erp-cloud-conflict', () => { conflictFired = true }, { once: true })
 
-        // 3. Save → RPC throws → guarded fallback sees newer cloud → must NOT overwrite
-        await cloudStorage.setItem(KEY, initializedPayload)
+        // 3. Save a snapshot that incorporates only T1 (its _baseCloudTs travels
+        // inside the state, as stamped at hydration) → guarded fallback sees a
+        // newer cloud → must NOT overwrite.
+        const stalePayload = JSON.stringify({
+            state: { initialized: true, _baseCloudTs: '2026-06-01T00:00:00.000Z' },
+            version: 13,
+        })
+        await cloudStorage.setItem(KEY, stalePayload)
 
         expect(conflictFired).toBe(true)
         expect(h.upsert).not.toHaveBeenCalled()

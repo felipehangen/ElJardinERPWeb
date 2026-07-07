@@ -66,15 +66,18 @@ describe('cloudStorage lastKnownCloudTs sync update', () => {
 
     // At this point: first setItem is suspended waiting for the upsert.
     // The upsert .then() has NOT fired yet — resolveUpsert has not been called.
-    // In buggy code: lastKnownCloudTs is still undefined.
-    // In fixed code: lastKnownCloudTs was updated synchronously before the upsert call.
+    // In buggy code: the write baseline is still undefined.
+    // In fixed code: lastSelfWrittenTs was updated synchronously before the upsert call.
 
+    // Queue the second save WITHOUT awaiting (the write mutex holds it behind
+    // the first save's in-flight upsert), then release the first upsert so the
+    // chain can drain.
     const payload2 = JSON.stringify({ state: { initialized: true }, version: 13 })
-    await cloudStorage.setItem('jardin-erp-storage-v4', payload2)
-
-    // Now release the first upsert so the test can clean up
+    const secondSave = cloudStorage.setItem('jardin-erp-storage-v4', payload2)
+    await new Promise(r => setTimeout(r, 0))
     resolveUpsert?.({ error: null })
     await firstSave
+    await secondSave
 
     const calls = vi.mocked(supabase.rpc).mock.calls
     expect(calls.length).toBeGreaterThanOrEqual(2)

@@ -4,13 +4,50 @@ import { computeDiferencia, DIFERENCIA_TOLERANCE, type BalanceState } from '../l
 
 export const CLOUD_STORAGE_KEY = 'jardin-erp-storage-v4';
 
-// Tracks the _savedAt of the last cloud state we read.
-// Passed to safe_save_app_state() so the DB can detect if someone else
-// (another tab, another device, or a manual SQL fix) updated the cloud
-// between our last load and this save attempt.
-let lastKnownCloudTs: string | undefined;
+// ── Honest optimistic lock ──────────────────────────────────────────────────
+// The write baseline (the cloud version a save is allowed to overwrite) must be
+// tied to the STATE SNAPSHOT being saved, not to a module variable updated when
+// data arrives from the network. A module-level "last seen cloud ts" lies during
+// the sync window: forceRefreshFromCloud() has fetched a newer cloud copy (ts
+// updated) but rehydrate() hasn't landed it in Zustand yet — a save fired in
+// that window carries OLD in-memory state with a FRESH ts, passes the lock, and
+// erases the other device's transactions (2026-07-07 incident: a physical-count
+// tx vanished from the log this way and Diferencia opened by its exact amount).
+//
+// Fix: every hydrated snapshot carries `state._baseCloudTs` = the cloud version
+// it actually incorporates (stamped by getItem/forceRefreshFromCloud at merge
+// time, so it travels WITH the data into Zustand and back out on save).
+// setItem's baseline = max(_baseCloudTs of the snapshot, lastSelfWrittenTs) —
+// the latter covers our own successful writes, which by definition the current
+// state supersedes. A save whose snapshot predates the cloud now loses the lock
+// and aborts (the union-merge on the next sync recovers its transactions).
+let lastSelfWrittenTs: string | undefined;
+
+// Serialize cloud pushes: one check-then-write in flight at a time, so two
+// saves can't interleave their conflict checks (and a queued save always sees
+// lastSelfWrittenTs from the save before it).
+let writeChain: Promise<void> = Promise.resolve();
 
 type PersistedBlob = Record<string, any>;
+
+// Later ISO-8601 timestamp of the two (they compare lexicographically).
+function maxTs(a?: string, b?: string): string | undefined {
+    if (!a) return b;
+    if (!b) return a;
+    return a > b ? a : b;
+}
+
+// Stamp the baseline into the blob's state so it survives hydration and comes
+// back to setItem inside the snapshot itself.
+function stampBaseCloudTs(blob: PersistedBlob, cloudTs?: string, prior?: PersistedBlob): PersistedBlob {
+    if (!blob?.state) return blob;
+    const base = maxTs(
+        maxTs(blob.state._baseCloudTs as string | undefined, prior?.state?._baseCloudTs as string | undefined),
+        cloudTs
+    );
+    if (!base) return blob;
+    return { ...blob, state: { ...blob.state, _baseCloudTs: base } };
+}
 
 // Union-merge the transaction logs of two persisted blobs by transaction id.
 //
@@ -68,14 +105,21 @@ export async function forceRefreshFromCloud(): Promise<boolean> {
 
         if (!error && data?.data_json) {
             let cloudData = data.data_json as Record<string, any>;
+            const cloudTs = cloudData._savedAt as string | undefined;
             // Recover any transactions this client holds locally that the cloud
             // copy is missing (e.g. an entry whose save lost an optimistic-lock
             // conflict) instead of dropping them on a forced refresh.
+            let localObj: PersistedBlob | undefined;
             try {
                 const localRaw = localStorage.getItem(CLOUD_STORAGE_KEY);
-                if (localRaw) cloudData = mergeTransactionLogs(cloudData, JSON.parse(localRaw));
+                if (localRaw) {
+                    localObj = JSON.parse(localRaw);
+                    cloudData = mergeTransactionLogs(cloudData, localObj as PersistedBlob);
+                }
             } catch { /* malformed local — fall back to cloud as-is */ }
-            lastKnownCloudTs = cloudData._savedAt as string | undefined;
+            // The baseline travels INSIDE the snapshot: it only becomes the write
+            // baseline once this data has actually rehydrated into the store.
+            cloudData = stampBaseCloudTs(cloudData, cloudTs, localObj);
             localStorage.setItem(CLOUD_STORAGE_KEY, JSON.stringify(cloudData));
             return true;
         }
@@ -86,12 +130,12 @@ export async function forceRefreshFromCloud(): Promise<boolean> {
 }
 
 // Fallback usado cuando la RPC atómica no está disponible o la red falla.
-// Antes de sobrescribir, re-consulta el _savedAt de la nube y compara contra
-// lastKnownCloudTs: si la nube es ESTRICTAMENTE más nueva, alguien la corrigió
-// desde nuestra última carga → abortamos para no pisar la corrección (misma
-// semántica que el optimistic lock). El upsert se espera (await) para que la
-// escritura termine antes de resolver setItem.
-async function guardedDirectUpsert(parsedData: Record<string, unknown>): Promise<void> {
+// Antes de sobrescribir, re-consulta el _savedAt de la nube y compara contra el
+// baseline DEL SNAPSHOT que se está guardando: si la nube es ESTRICTAMENTE más
+// nueva, alguien escribió después de lo que este snapshot incorpora → abortamos
+// para no pisarlo (misma semántica que el optimistic lock). El upsert se espera
+// (await) para que la escritura termine antes de resolver setItem.
+async function guardedDirectUpsert(parsedData: Record<string, unknown>, baseline: string | undefined): Promise<void> {
     try {
         const { data: current } = await supabase
             .from('app_state')
@@ -99,9 +143,8 @@ async function guardedDirectUpsert(parsedData: Record<string, unknown>): Promise
             .eq('id', 'erp_master_vault_v1')
             .single();
         const cloudTs = (current?.data_json as Record<string, unknown> | undefined)?._savedAt as string | undefined;
-        if (cloudTs && lastKnownCloudTs && cloudTs > lastKnownCloudTs) {
-            console.warn('⚠️ Conflicto (fallback): la nube es más reciente. Abortando escritura.');
-            lastKnownCloudTs = cloudTs;
+        if (cloudTs && baseline && cloudTs > baseline) {
+            console.warn('⚠️ Conflicto (fallback): la nube es más reciente que este snapshot. Abortando escritura.');
             window.dispatchEvent(new CustomEvent('erp-cloud-conflict'));
             return;
         }
@@ -109,10 +152,10 @@ async function guardedDirectUpsert(parsedData: Record<string, unknown>): Promise
         // No pudimos leer la nube (offline). Continuamos con el upsert: en modo
         // offline el upsert también fallará y se captura abajo; si hay red, escribimos.
     }
-    // Sin conflicto → avanzamos el baseline ANTES de que el upsert resuelva, para que
-    // un setItem encadenado lleve un p_last_known_ts no nulo (optimista, igual que la
-    // ruta exitosa de la RPC). Si el upsert falla, solo registramos el error.
-    lastKnownCloudTs = parsedData._savedAt as string;
+    // Sin conflicto → avanzamos lastSelfWrittenTs ANTES de que el upsert resuelva,
+    // para que un setItem encadenado lleve un baseline no nulo (optimista, igual
+    // que la ruta exitosa de la RPC). Si el upsert falla, solo registramos el error.
+    lastSelfWrittenTs = parsedData._savedAt as string;
     const { error } = await supabase
         .from('app_state')
         .upsert({ id: 'erp_master_vault_v1', data_json: parsedData });
@@ -155,10 +198,6 @@ export const cloudStorage: StateStorage = {
                 const cloudJson = data.data_json as Record<string, any>;
                 const cloudTs = cloudJson._savedAt as string | undefined;
 
-                // Always record the cloud timestamp — even if we end up using
-                // local — so setItem's conflict check has a valid baseline.
-                lastKnownCloudTs = cloudTs;
-
                 // Parse local copy (may not exist / may be malformed in old saves)
                 let localObj: Record<string, any> | undefined;
                 let localTs: string | undefined;
@@ -177,7 +216,12 @@ export const cloudStorage: StateStorage = {
                     const cloudIsNewer = !!cloudTs && (!localTs || cloudTs > localTs);
                     const base = cloudIsNewer ? cloudJson : localObj;
                     const other = cloudIsNewer ? localObj : cloudJson;
-                    const mergedString = JSON.stringify(mergeTransactionLogs(base, other));
+                    // Stamp the baseline INTO the snapshot being hydrated: after this
+                    // merge the snapshot incorporates the cloud version, whichever
+                    // side won. It becomes the write baseline only via the state
+                    // itself (see setItem) — never via a side variable.
+                    const merged = stampBaseCloudTs(mergeTransactionLogs(base, other), cloudTs, other);
+                    const mergedString = JSON.stringify(merged);
                     if (cloudIsNewer) console.log('☁️ Datos más recientes en la nube. Sincronizando (merge de transacciones)...');
                     localStorage.setItem(name, mergedString);
                     return mergedString;
@@ -185,7 +229,7 @@ export const cloudStorage: StateStorage = {
 
                 // No usable local copy → use cloud as-is.
                 if (cloudTs) {
-                    const cloudString = JSON.stringify(cloudJson);
+                    const cloudString = JSON.stringify(stampBaseCloudTs(cloudJson, cloudTs));
                     localStorage.setItem(name, cloudString);
                     return cloudString;
                 }
@@ -240,35 +284,47 @@ export const cloudStorage: StateStorage = {
             }
         } catch { /* guard is advisory — never let it break a save */ }
 
-        // 2. Empujar a la nube via RPC atómica con check de concurrencia optimista
-        try {
-            const { data: result, error } = await supabase.rpc('safe_save_app_state', {
-                p_data: parsedData,
-                p_last_known_ts: lastKnownCloudTs ?? null
-            });
+        // 2. Empujar a la nube — serializado (mutex) y con lock optimista HONESTO:
+        // el baseline sale del snapshot que se está guardando (state._baseCloudTs,
+        // estampado al hidratar) o de nuestra última escritura exitosa — nunca de
+        // un timestamp que la capa de red vio pero el estado aún no incorporó.
+        const pushToCloud = async (): Promise<void> => {
+            const baseline = maxTs(appState._baseCloudTs as string | undefined, lastSelfWrittenTs);
+            try {
+                const { data: result, error } = await supabase.rpc('safe_save_app_state', {
+                    p_data: parsedData,
+                    p_last_known_ts: baseline ?? null
+                });
 
-            if (error) {
-                // RPC no disponible (ej. primera versión pre-migración) → fallback con guarda
-                console.warn('safe_save_app_state no disponible, usando upsert con guarda:', error.message);
-                await guardedDirectUpsert(parsedData);
-                return;
+                if (error) {
+                    // RPC no disponible (ej. primera versión pre-migración) → fallback con guarda
+                    console.warn('safe_save_app_state no disponible, usando upsert con guarda:', error.message);
+                    await guardedDirectUpsert(parsedData, baseline);
+                    return;
+                }
+
+                if (result?.conflict) {
+                    // La nube tiene una versión que este snapshot NO incorpora (otro
+                    // dispositivo/pestaña o un fix externo). Abortamos: el próximo sync
+                    // trae esa versión y el union-merge recupera nuestras transacciones.
+                    console.warn('⚠️ Conflicto: la nube es más reciente que este snapshot. Abortando escritura.');
+                    window.dispatchEvent(new CustomEvent('erp-cloud-conflict'));
+                    return;
+                }
+
+                // Escritura exitosa: nuestras escrituras posteriores parten de aquí.
+                lastSelfWrittenTs = parsedData._savedAt as string;
+            } catch {
+                // Error de red en la RPC — fallback con guarda (re-chequea conflicto y espera)
+                await guardedDirectUpsert(parsedData, baseline);
             }
+        };
 
-            if (result?.conflict) {
-                // La nube fue actualizada externamente (SQL fix, otro dispositivo) desde
-                // nuestra última carga. Abortamos la escritura para no pisar la corrección.
-                console.warn('⚠️ Conflicto: la nube fue actualizada externamente. Abortando escritura.');
-                lastKnownCloudTs = result.cloud_ts as string | undefined;
-                window.dispatchEvent(new CustomEvent('erp-cloud-conflict'));
-                return;
-            }
-
-            // Escritura exitosa
-            lastKnownCloudTs = parsedData._savedAt as string;
-        } catch {
-            // Error de red en la RPC — fallback con guarda (re-chequea conflicto y espera)
-            await guardedDirectUpsert(parsedData);
-        }
+        // Mutex: encadenar tras la escritura anterior (pase o falle), para que dos
+        // saves no intercalen sus check-then-write y el segundo vea lastSelfWrittenTs.
+        const run = writeChain.then(pushToCloud, pushToCloud);
+        writeChain = run.catch(() => { /* mantener la cadena viva */ });
+        return run;
     },
 
     removeItem: async (name: string): Promise<void> => {

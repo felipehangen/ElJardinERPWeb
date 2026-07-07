@@ -67,3 +67,12 @@ prevents clobbering; the merge recovers the blocked writer's entries on reload.
 Derived fields (cash/inventario/patrimonio) are recomputed by `reconcile()`
 afterward. See the "void, never hard-delete" corollary above for the one edge
 this leaves open.
+
+**Honest lock (v1.1.11):** the write baseline travels INSIDE the snapshot as
+`state._baseCloudTs` (stamped by `getItem`/`forceRefreshFromCloud` at merge
+time) — never a module variable updated on network read. A save whose in-memory
+state predates the cloud loses the lock and aborts, even if a fresh cloud read
+happened in between (2026-07-07 incident: that window erased a physical-count
+tx from the log until the next union-merge recovered it). Cloud pushes are also
+serialized through a write mutex. Do not reintroduce a network-layer timestamp
+as the lock baseline.
