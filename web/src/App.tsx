@@ -29,6 +29,7 @@ export default function App() {
   const [syncToast, setSyncToast] = useState(false);
   const [conflictToast, setConflictToast] = useState(false);
   const [balanceWarning, setBalanceWarning] = useState<number | null>(null);
+  const [inventoryDrift, setInventoryDrift] = useState<{ total: number; names: string[] } | null>(null);
   const isSyncingRef = useRef(false);
 
   useEffect(() => {
@@ -103,9 +104,17 @@ export default function App() {
     const handleBalanceOk = () => setBalanceWarning(null);
     window.addEventListener('erp-balance-warning', handleBalance);
     window.addEventListener('erp-balance-ok', handleBalanceOk);
+    // Shadow inventory-ledger audit: the saved array diverges from what the
+    // transaction log predicts (stale-array merge fingerprint).
+    const handleDrift = (e: Event) => {
+      const det = (e as CustomEvent<{ total: number; drifts: Array<{ name: string }> }>).detail;
+      setInventoryDrift({ total: det.total, names: det.drifts.slice(0, 3).map(d => d.name) });
+    };
+    window.addEventListener('erp-inventory-drift', handleDrift);
     return () => {
       window.removeEventListener('erp-balance-warning', handleBalance);
       window.removeEventListener('erp-balance-ok', handleBalanceOk);
+      window.removeEventListener('erp-inventory-drift', handleDrift);
     };
   }, []);
 
@@ -251,6 +260,23 @@ export default function App() {
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-amber-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-lg">⚠️</span>
           La nube fue actualizada externamente — sincronizando...
+        </div>
+      )}
+
+      {/* Inventory-drift banner (shadow audit): array diverged from the ledger */}
+      {inventoryDrift !== null && balanceWarning === null && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-red-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold max-w-[92vw]">
+          <span className="text-lg">🚨</span>
+          <span>
+            Inventario desincronizado del historial (₡{inventoryDrift.total.toLocaleString('es-CR')}):{' '}
+            {inventoryDrift.names.join(', ')}… Sincroniza la nube y revisa esos items.
+          </span>
+          <button
+            onClick={() => { setInventoryDrift(null); syncFromCloud(); }}
+            className="ml-1 shrink-0 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1"
+          >
+            Sincronizar
+          </button>
         </div>
       )}
 

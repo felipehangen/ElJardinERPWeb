@@ -1,6 +1,7 @@
 import type { StateStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { computeDiferencia, DIFERENCIA_TOLERANCE, type BalanceState } from '../lib/balanceGuard';
+import { auditInventoryAgainstLedger, totalDriftValue } from '../lib/inventoryLedger';
 
 export const CLOUD_STORAGE_KEY = 'jardin-erp-storage-v4';
 
@@ -283,6 +284,24 @@ export const cloudStorage: StateStorage = {
                 window.dispatchEvent(new CustomEvent('erp-balance-ok'));
             }
         } catch { /* guard is advisory — never let it break a save */ }
+
+        // 1d. Inventory ledger audit (SHADOW): derive each item's expected stock
+        // from the transaction log (anchored at its latest physical count) and
+        // compare against the array being saved. Detects a stale-array merge
+        // reverting counts/purchases — the two 2026 incidents — at save time.
+        // Advisory only: alarms, never blocks or mutates.
+        try {
+            const drifts = auditInventoryAgainstLedger(
+                (appState.transactions as any) ?? [],
+                (appState.inventory as any) ?? [],
+            );
+            const total = totalDriftValue(drifts);
+            if (total >= DIFERENCIA_TOLERANCE) {
+                console.error(`🚨 Inventario desincronizado del log (₡${total}):`,
+                    drifts.slice(0, 5).map(d => `${d.name}: array ${d.actualStock} vs ledger ${d.expectedStock}`));
+                window.dispatchEvent(new CustomEvent('erp-inventory-drift', { detail: { total, drifts } }));
+            }
+        } catch { /* shadow audit — never let it break a save */ }
 
         // 2. Empujar a la nube — serializado (mutex) y con lock optimista HONESTO:
         // el baseline sale del snapshot que se está guardando (state._baseCloudTs,
