@@ -31,6 +31,7 @@ export default function App() {
   const [conflictToast, setConflictToast] = useState(false);
   const [balanceWarning, setBalanceWarning] = useState<number | null>(null);
   const [inventoryDrift, setInventoryDrift] = useState<{ total: number; names: string[] } | null>(null);
+  const [healedToast, setHealedToast] = useState<{ total: number; names: string[] } | null>(null);
   const isSyncingRef = useRef(false);
 
   useEffect(() => {
@@ -120,10 +121,20 @@ export default function App() {
       setInventoryDrift({ total: det.total, names: det.drifts.slice(0, 3).map(d => d.name) });
     };
     window.addEventListener('erp-inventory-drift', handleDrift);
+    // Authoritative healing: rehydrate corrected drifted stock from the ledger.
+    // Informational — the system already fixed it; clear any standing drift alarm.
+    const handleHealed = (e: Event) => {
+      const det = (e as CustomEvent<{ total: number; healed: Array<{ name: string }> }>).detail;
+      setInventoryDrift(null);
+      setHealedToast({ total: det.total, names: det.healed.slice(0, 3).map(h => h.name) });
+      setTimeout(() => setHealedToast(null), 8000);
+    };
+    window.addEventListener('erp-inventory-healed', handleHealed);
     return () => {
       window.removeEventListener('erp-balance-warning', handleBalance);
       window.removeEventListener('erp-balance-ok', handleBalanceOk);
       window.removeEventListener('erp-inventory-drift', handleDrift);
+      window.removeEventListener('erp-inventory-healed', handleHealed);
     };
   }, []);
 
@@ -269,6 +280,17 @@ export default function App() {
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-amber-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-lg">⚠️</span>
           La nube fue actualizada externamente — sincronizando...
+        </div>
+      )}
+
+      {/* Inventory auto-heal toast: rehydrate corrected drifted stock from the ledger */}
+      {healedToast !== null && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold max-w-[92vw]">
+          <span className="text-lg">🩹</span>
+          <span>
+            Inventario auto-reparado desde el historial (₡{healedToast.total.toLocaleString('es-CR')}):{' '}
+            {healedToast.names.join(', ')}
+          </span>
         </div>
       )}
 

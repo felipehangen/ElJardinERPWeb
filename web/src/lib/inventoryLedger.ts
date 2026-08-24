@@ -16,10 +16,10 @@ import type { Transaction, InventoryItem } from '../types';
 //
 // WHY: the cloud merge unions the transaction LOG but takes the inventory
 // ARRAY last-write-wins, so a stale window can revert counts/purchases in the
-// array while their txs stay booked (incidents 2026-06-30 and 2026-07-07).
-// Cash self-heals from the log; inventory does not — yet. This audit is the
-// shadow phase: it only DETECTS divergence (console + event), never mutates.
-// Once it proves quiet in production, the derivation can become authoritative.
+// array while their txs stay booked (incidents 2026-06-30, 07-07, 07-31 and
+// 08-22 — the last three caught live by this audit). Cash self-heals from the
+// log; inventory now does too: healInventoryFromLedger (below) is AUTHORITATIVE
+// at rehydrate, and the save-time audit stays on as a watchdog.
 
 export interface InventoryDrift {
     id: string;
@@ -34,21 +34,15 @@ const num = (v: unknown): number => {
     return Number.isFinite(n) ? n : 0;
 };
 
-export function auditInventoryAgainstLedger(
-    transactions: Transaction[],
-    inventory: InventoryItem[],
-    toleranceValue = 1,
-): InventoryDrift[] {
-    if (!Array.isArray(transactions) || !Array.isArray(inventory)) return [];
-
+// Replay the ledger chronologically → expected stock per item id, plus the set
+// of items the ledger actually references (an array item with no ledger history
+// at all is out of scope — e.g. a catalog entry created by hand).
+export function deriveExpectedStocks(transactions: Transaction[]): { expected: Map<string, number>; seen: Set<string> } {
     // Chronological replay; skip voided originals and their contra entries.
     const live = transactions
         .filter(t => t.status !== 'VOIDED' && !t.voidingTxId)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // expected stock per item id; `seen` = items the ledger actually references
-    // (an array item with no ledger history at all is out of scope — e.g. a
-    // catalog entry created by hand — so we don't false-alarm on it).
     const expected = new Map<string, number>();
     const seen = new Set<string>();
     const setStock = (id: string, v: number) => { expected.set(id, v); seen.add(id); };
@@ -85,6 +79,17 @@ export function auditInventoryAgainstLedger(
         }
     }
 
+    return { expected, seen };
+}
+
+export function auditInventoryAgainstLedger(
+    transactions: Transaction[],
+    inventory: InventoryItem[],
+    toleranceValue = 1,
+): InventoryDrift[] {
+    if (!Array.isArray(transactions) || !Array.isArray(inventory)) return [];
+    const { expected, seen } = deriveExpectedStocks(transactions);
+
     // Compare against the array — only items the ledger knows about.
     const drifts: InventoryDrift[] = [];
     for (const item of inventory) {
@@ -107,4 +112,40 @@ export function auditInventoryAgainstLedger(
 // Total absolute drift value — the alarm threshold input.
 export function totalDriftValue(drifts: InventoryDrift[]): number {
     return Number(drifts.reduce((s, d) => s + Math.abs(d.valueDelta), 0).toFixed(2));
+}
+
+// ── AUTHORITATIVE healing (promoted 2026-08 after four live catches) ────────
+// Rewrites any drifted item's stock to the ledger-derived value — the inventory
+// equivalent of deriveCashFromLedger's self-healing. Runs at REHYDRATE time
+// only (the one door a clobber enters through: a sync merge, a restore, or a
+// stale/old-version client's write). NOT run per-transaction: several handlers
+// mutate the array before their addTransaction lands, so an in-flow derivation
+// would revert legitimate mutations.
+//
+// A healed item's batches are collapsed to a single batch at its current avg
+// cost (same normalization every manual SQL repair used): the exact FIFO
+// layers are unrecoverable after a clobber, and booked COGS is untouched.
+export function healInventoryFromLedger(
+    transactions: Transaction[],
+    inventory: InventoryItem[],
+): { inventory: InventoryItem[]; healed: InventoryDrift[] } {
+    const drifts = auditInventoryAgainstLedger(transactions, inventory);
+    if (drifts.length === 0) return { inventory, healed: [] };
+
+    const fix = new Map(drifts.map(d => [d.id, d.expectedStock]));
+    const healedInventory = inventory.map(item => {
+        const stock = fix.get(item.id);
+        if (stock === undefined) return item;
+        return {
+            ...item,
+            stock,
+            batches: [{
+                id: 'heal-' + item.id + '-' + stock,
+                date: new Date().toISOString(),
+                cost: item.cost,
+                stock,
+            }],
+        };
+    });
+    return { inventory: healedInventory, healed: drifts };
 }

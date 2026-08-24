@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { cloudStorage, CLOUD_STORAGE_KEY } from './cloudStorage';
+import { healInventoryFromLedger, totalDriftValue } from '../lib/inventoryLedger';
 import { INITIAL_STATE } from '../types';
 import type { AppState, Accounts, InventoryItem, Product, Transaction, Provider, ExpenseType, AssetItem, Location } from '../types';
 
@@ -742,6 +743,22 @@ export const useStore = create<AppState & StoreActions>()(
             // trusted blindly — the ledger is the single source of truth.
             onRehydrateStorage: () => (state) => {
                 if (state?.initialized && state.transactions?.length) {
+                    // AUTHORITATIVE inventory healing: a rehydrate is the one door a
+                    // stale-array clobber enters through (sync merge, restore, or an
+                    // old-version client's write). Correct any item whose stock the
+                    // transaction ledger cannot explain BEFORE deriving balances, so
+                    // inventory self-heals from the log exactly like cash does.
+                    // (Not run per-transaction: handlers mutate the array before
+                    // their addTransaction lands.)
+                    const { inventory, healed } = healInventoryFromLedger(state.transactions, state.inventory);
+                    if (healed.length > 0) {
+                        console.warn('🩹 Inventario auto-reparado desde el historial:',
+                            healed.map(h => `${h.name}: ${h.actualStock} → ${h.expectedStock}`));
+                        useStore.setState({ inventory });
+                        window.dispatchEvent(new CustomEvent('erp-inventory-healed', {
+                            detail: { healed, total: totalDriftValue(healed) },
+                        }));
+                    }
                     state.reconcile();
                 }
             },

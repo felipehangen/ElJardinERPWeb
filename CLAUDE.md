@@ -65,7 +65,11 @@ Cloud sync stores the whole state as one document, but `cloudStorage.ts`
 lost to last-write-wins. The optimistic lock (`safe_save_app_state`) still
 prevents clobbering; the merge recovers the blocked writer's entries on reload.
 Derived fields (cash/inventario/patrimonio) are recomputed by `reconcile()`
-afterward. See the "void, never hard-delete" corollary above for the one edge
+afterward. **Inventory healing is AUTHORITATIVE (v1.1.15):** at every rehydrate,
+`healInventoryFromLedger` rewrites any item whose stock the transaction ledger
+cannot explain (anchor = latest physical count) — the inventory version of
+cash's self-healing. The save-time shadow audit stays on as a watchdog; if it
+ever fires, healing and audit disagree — investigate, don't silence. See the "void, never hard-delete" corollary above for the one edge
 this leaves open.
 
 **Honest lock (v1.1.11):** the write baseline travels INSIDE the snapshot as
