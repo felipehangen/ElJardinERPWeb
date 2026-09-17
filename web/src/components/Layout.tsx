@@ -72,7 +72,11 @@ export const Layout = ({ children, currentTab, onTabChange, onSync, isSyncing }:
 
             {/* Mobile Header */}
             <header className="lg:hidden fixed top-0 w-full bg-white border-b border-gray-200 z-20 px-4 h-16 flex items-center justify-between">
-                <div className="font-bold text-lg">El Jardín</div>
+                <div className="font-bold text-lg flex items-baseline gap-2">
+                    El Jardín
+                    {/* Version visible on mobile too — needed to verify a device runs the latest deploy */}
+                    <span className="text-[10px] font-medium text-gray-400 tracking-wider">v{packageJson.version}</span>
+                </div>
                 <div className="flex items-center gap-1">
                     {onSync && (
                         <button
@@ -97,7 +101,7 @@ export const Layout = ({ children, currentTab, onTabChange, onSync, isSyncing }:
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
                     <aside className="absolute left-0 top-0 h-full w-64 bg-white p-4 shadow-2xl animate-in slide-in-from-left duration-200">
                         <div className="flex justify-between items-center mb-8">
-                            <span className="font-bold text-xl">Menú</span>
+                            <span className="font-bold text-xl">Menú <span className="text-xs font-medium text-gray-400 align-middle">v{packageJson.version}</span></span>
                             <button onClick={() => setSidebarOpen(false)}><X /></button>
                         </div>
                         <nav className="space-y-2">
