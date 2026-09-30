@@ -69,7 +69,13 @@ afterward. **Inventory healing is AUTHORITATIVE (v1.1.15):** at every rehydrate,
 `healInventoryFromLedger` rewrites any item whose stock the transaction ledger
 cannot explain (anchor = latest physical count) — the inventory version of
 cash's self-healing. The save-time shadow audit stays on as a watchdog; if it
-ever fires, healing and audit disagree — investigate, don't silence. See the "void, never hard-delete" corollary above for the one edge
+ever fires, healing and audit disagree — investigate, don't silence.
+**KNOWN FLAW (bit twice: ₡600 on 2026-09-17, ₡47,250 on 2026-09-30):** the
+heal collapses batches at the item's CURRENT average cost, so stock heals
+exactly but VALUE inherits a possibly poisoned average — `Diferencia` then
+opens with zero stock drift. Signature: `heal-*` batch whose cost is far from
+the item's ledger unit costs. Pending fix: drain batches LIFO on heal
+reductions instead of collapsing. Full postmortem in [lessons.md](./lessons.md). See the "void, never hard-delete" corollary above for the one edge
 this leaves open.
 
 **Honest lock (v1.1.11):** the write baseline travels INSIDE the snapshot as
