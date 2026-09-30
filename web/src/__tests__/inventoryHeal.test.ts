@@ -56,6 +56,54 @@ describe('healInventoryFromLedger (authoritative)', () => {
         expect(inventory.find(i => i.id === 'manual')).toBe(manual)
     })
 
+    it('drains LIFO on reduction, preserving historical costs (2026-09-30 paletas incident)', () => {
+        // Old layer: 100 units @ ₡5 (onboarding). New layer: 100 units @ ₡950
+        // (a typo purchase, later voided — but a racing window's array kept it).
+        // Ledger says 100. LIFO must remove the NEW poisoned layer and leave the
+        // old ₡5 stock untouched — the old collapse-at-average froze ₡477.50.
+        const paletas = {
+            id: 'pal', name: 'Paletas', stock: 200, cost: 477.5,
+            batches: [
+                { id: 'onb', date: at(0), cost: 5, stock: 100 },
+                { id: 'typo', date: at(50), cost: 950, stock: 100 },
+            ],
+        } as InventoryItem
+        const txs = [onboarding({ pal: 100 })]
+        const { inventory, healed } = healInventoryFromLedger(txs, [paletas])
+        expect(healed).toHaveLength(1)
+        const p = inventory.find(i => i.id === 'pal')!
+        expect(p.stock).toBe(100)
+        expect(p.cost).toBe(5) // historical cost preserved — zero phantom value
+        expect(p.batches).toHaveLength(1)
+        expect(p.batches![0].id).toBe('onb')
+        expect(p.batches![0].cost).toBe(5)
+    })
+
+    it('partial LIFO drain trims the newest batch and keeps the rest', () => {
+        const it2 = {
+            id: 'x', name: 'X', stock: 10, cost: 28,
+            batches: [
+                { id: 'old', date: at(0), cost: 10, stock: 5 },
+                { id: 'new', date: at(50), cost: 46, stock: 5 },
+            ],
+        } as InventoryItem
+        const txs = [onboarding({ x: 7 })] // expected 7 → drain 3 from 'new'
+        const { inventory } = healInventoryFromLedger(txs, [it2])
+        const x = inventory.find(i => i.id === 'x')!
+        expect(x.stock).toBe(7)
+        expect(x.batches!.map(b => [b.id, b.stock])).toEqual([['old', 5], ['new', 2]])
+        expect(x.cost).toBeCloseTo((5 * 10 + 2 * 46) / 7, 10)
+    })
+
+    it('adds found stock at the current average cost on increase', () => {
+        const txs = [onboarding({ a: 10 })]
+        const { inventory } = healInventoryFromLedger(txs, [item('a', 6, 100)])
+        const a = inventory.find(i => i.id === 'a')!
+        expect(a.stock).toBe(10)
+        expect(a.cost).toBe(100)
+        expect(a.batches!.some(b => b.id.startsWith('heal-') && b.stock === 4 && b.cost === 100)).toBe(true)
+    })
+
     it('heals only the drifted items, leaving consistent ones intact', () => {
         const txs = [onboarding({ a: 10, b: 20 }), count({ a: 4 }, 10)]
         const okItem = item('b', 20)
