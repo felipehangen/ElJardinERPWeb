@@ -122,7 +122,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         updateAccounts, reconcile, addTransaction,
         inventory, addInventoryItem, updateInventoryItem,
         addAssetItem,
-        providers, addProvider,
+        providers, addProvider, locations,
         getLedgerAccounts
     } = useStore();
 
@@ -138,7 +138,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
 
     // Smart Create State
     const [isCreating, setIsCreating] = useState(false);
-    const [newItem, setNewItem] = useState({ name: '', cost: '' });
+    const [newItem, setNewItem] = useState({ name: '', cost: '', locationId: '' });
 
     // Confirmation State
     const [isConfirming, setIsConfirming] = useState(false);
@@ -157,7 +157,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         }
 
         // Intercept: Don't create yet. Open sub-dialog.
-        setNewItem({ name, cost: '' });
+        setNewItem({ name, cost: '', locationId: '' });
         setIsCreating(true);
     };
 
@@ -172,12 +172,12 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         const cost = parseFloat(newItem.cost || '0');
 
         // 1. Create Inventory Item
-        addInventoryItem({ id, name: newItem.name, cost, stock: 0 });
+        addInventoryItem({ id, name: newItem.name, cost, stock: 0, locationId: newItem.locationId || undefined });
 
         // 2. Select it in form
         setForm(prev => ({ ...prev, itemId: id, itemName: newItem.name }));
         setIsCreating(false);
-        setNewItem({ name: '', cost: '' });
+        setNewItem({ name: '', cost: '', locationId: '' });
     };
 
     const handleCreateProv = (name: string) => {
@@ -376,6 +376,20 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
                                 <div>
                                     <label className="text-xs font-bold text-gray-500 uppercase">Costo Unitario (Opcional)</label>
                                     <Input type="number" value={newItem.cost} onChange={e => setNewItem({ ...newItem, cost: e.target.value })} placeholder="0.00" />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Bodega</label>
+                                    <select
+                                        className="w-full h-12 px-3 border border-gray-200 rounded-xl bg-white text-sm outline-none focus:border-jardin-primary"
+                                        value={newItem.locationId}
+                                        onChange={e => setNewItem({ ...newItem, locationId: e.target.value })}
+                                    >
+                                        <option value="">Bodega Ppal</option>
+                                        {locations.filter(l => !l.hidden).map(l => (
+                                            <option key={l.id} value={l.id}>{l.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
