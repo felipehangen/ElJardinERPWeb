@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { AccountingActions } from '../../lib/accounting';
 import { AccountingFeedback } from '../AccountingFeedback';
 import { summarizeInventoryCount } from '../../lib/inventoryCountSummary';
+import { accountsAnchoredAfter, lastCashAuditFor, itemsAnchoredAfter, buildBackdatedTimestamp, type CashAccount } from '../../lib/backdateGuard';
 
 // Shared Payment Selector
 const PaymentMethod = ({ value, onChange, showSplit = false }: any) => (
@@ -43,7 +44,79 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, data }: any) => {
     );
 };
 
-// 1. Purchase (Inventario/Activo)
+const ACCOUNT_LABEL: Record<CashAccount, string> = { caja_chica: 'Caja Chica', banco: 'Banco' };
+
+// Warning shown when the chosen date lands BEFORE an anchor that will absorb
+// the operation on ledger replay: a cash audit (cash side — the SET absorbs
+// the cash effect and opens "Diferencia por Conciliar"; incidents 2026-08-02 /
+// 2026-10-03) or, for purchases, an item's physical count (stock side — the
+// count's SET absorbs the added stock and the heal strips it at rehydrate).
+export interface BackdateWarning {
+    accounts: { account: CashAccount; auditDate: string }[];
+    items?: { name: string; countDate: string }[];
+}
+
+const BackdateWarningDialog = ({ warning, onUseToday, onKeepDate, onClose }: {
+    warning: BackdateWarning | null;
+    onUseToday: () => void; onKeepDate: () => void; onClose: () => void;
+}) => {
+    if (!warning) return null;
+    return (
+        <Modal isOpen onClose={onClose} title="Fecha anterior a un arqueo o toma física">
+            <div className="space-y-4">
+                {warning.accounts.length > 0 && (
+                    <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-red-800 text-sm space-y-2">
+                        <p className="font-bold flex gap-2 items-center"><span className="text-xl">⚠️</span>La fecha elegida es anterior al último arqueo:</p>
+                        <ul className="list-disc ml-6 space-y-1">
+                            {warning.accounts.map(w => (
+                                <li key={w.account}>
+                                    <strong>{ACCOUNT_LABEL[w.account]}</strong> — arqueo del {new Date(w.auditDate).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' })}
+                                </li>
+                            ))}
+                        </ul>
+                        <p>Ese arqueo ya ancló el efectivo de la cuenta a la realidad contada. Una operación con fecha anterior <strong>sumará al P&L pero no podrá mover el efectivo</strong>, y abrirá una "Diferencia por Conciliar" por el monto exacto.</p>
+                    </div>
+                )}
+                {(warning.items?.length ?? 0) > 0 && (
+                    <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-red-800 text-sm space-y-2">
+                        <p className="font-bold flex gap-2 items-center"><span className="text-xl">⚠️</span>La fecha elegida es anterior a la última toma física de:</p>
+                        <ul className="list-disc ml-6 space-y-1">
+                            {warning.items!.map(w => (
+                                <li key={w.name}>
+                                    <strong>{w.name}</strong> — toma física del {new Date(w.countDate).toLocaleString('es-CR', { dateStyle: 'medium', timeStyle: 'short' })}
+                                </li>
+                            ))}
+                        </ul>
+                        <p>Esa toma física ya ancló el stock del artículo a la realidad contada. Una compra con fecha anterior <strong>agregará stock que el sistema eliminará automáticamente</strong> en la próxima sincronización.</p>
+                    </div>
+                )}
+                <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs text-gray-600 space-y-1">
+                    <p><strong>Lo correcto:</strong> registrar la operación con la fecha de hoy.</p>
+                    <p><strong>Si mantienes la fecha retroactiva:</strong> deberás corregir el faltante/sobrante del arqueo para que la Diferencia vuelva a cero.</p>
+                </div>
+                <div className="flex flex-col gap-2 pt-1">
+                    <Button onClick={onUseToday} className="w-full">Usar fecha de hoy (recomendado)</Button>
+                    <Button variant="outline" onClick={onKeepDate} className="w-full border-red-200 text-red-700 hover:bg-red-50">Mantener fecha retroactiva</Button>
+                    <Button variant="ghost" onClick={onClose} className="w-full">Corregir</Button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+// 1. Purchase (Inventario/Activo) — con cola de compras múltiples, como ventas
+interface QueuedPurchase {
+    id: string;
+    tab: 'inventory' | 'asset';
+    itemId?: string;        // inventory item id (tab 'inventory')
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+    method: 'caja_chica' | 'banco';
+    providerName?: string;
+}
+
 export const PurchaseModal = ({ isOpen, onClose }: any) => {
     const {
         updateAccounts, reconcile, addTransaction,
@@ -56,6 +129,12 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
     const [tab, setTab] = useState<'inventory' | 'asset'>('inventory');
     const [form, setForm] = useState({ itemId: '', itemName: '', unitPrice: '', quantity: '1', method: 'caja_chica', provId: '' });
     const [tempProvName, setTempProvName] = useState('');
+    const [comboKey, setComboKey] = useState(0); // Remount Combobox to clear it after queuing
+
+    // Queue + date (mirrors SaleModal)
+    const [purchaseQueue, setPurchaseQueue] = useState<QueuedPurchase[]>([]);
+    const [purchaseDate, setPurchaseDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }));
+    const [backdateWarning, setBackdateWarning] = useState<BackdateWarning | null>(null);
 
     // Smart Create State
     const [isCreating, setIsCreating] = useState(false);
@@ -107,16 +186,79 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
         setForm(prev => ({ ...prev, provId: id }));
     };
 
-    const handleSubmit = () => {
-        const qty = parseFloat(form.quantity || '1');
+    // Add the current form as one line in the purchase queue (mirrors SaleModal's queue)
+    const handleAddToQueue = () => {
+        const quantity = parseFloat(form.quantity || '1');
         const unitPrice = parseFloat(form.unitPrice || '0');
-        const amount = qty * unitPrice;
+        const amount = quantity * unitPrice;
 
-        if (amount < 0 || !form.itemName) return;
+        if (!form.itemName || quantity <= 0 || amount < 0) return;
+        if (amount <= 0 && tab === 'inventory') return; // prevent ₡0 spurious FIFO batches
 
-        // Auto-creation check
+        // Auto-creation check: typed an inventory name that isn't in the catalog yet
         if (tab === 'inventory' && !form.itemId) {
             handleCreateInv(form.itemName);
+            return;
+        }
+
+        // Resolve/auto-create provider at queue time (catalog-only mutation, safe before submit)
+        let providerName: string | undefined = providers.find(p => p.id === form.provId)?.name;
+        if (!providerName && tempProvName.trim()) {
+            const existing = providers.find(p => normalizeName(p.name) === normalizeName(tempProvName));
+            if (existing) {
+                providerName = existing.name;
+            } else {
+                providerName = tempProvName.trim();
+                addProvider({ id: crypto.randomUUID(), name: providerName });
+            }
+        }
+
+        setPurchaseQueue(q => [...q, {
+            id: crypto.randomUUID(),
+            tab,
+            itemId: tab === 'inventory' ? form.itemId : undefined,
+            itemName: form.itemName,
+            quantity,
+            unitPrice,
+            amount,
+            method: form.method as 'caja_chica' | 'banco',
+            providerName
+        }]);
+
+        setForm({ itemId: '', itemName: '', unitPrice: '', quantity: '1', method: 'caja_chica', provId: '' });
+        setTempProvName('');
+        setComboKey(k => k + 1); // clear the item Combobox text
+    };
+
+    const handleRemoveFromQueue = (id: string) => {
+        setPurchaseQueue(q => q.filter(p => p.id !== id));
+    };
+
+    const totalQueueAmount = purchaseQueue.reduce((sum, p) => sum + p.amount, 0);
+
+    const handleSubmit = () => {
+        if (purchaseQueue.length === 0) return;
+
+        // Backdate guards: a purchase dated before the latest cash audit opens a
+        // "Diferencia por Conciliar" (cash side); dated before an item's latest
+        // physical count, the heal strips the added stock at rehydrate (stock side).
+        const transactions = useStore.getState().transactions;
+        const txDate = buildBackdatedTimestamp(purchaseDate);
+        const touched = purchaseQueue.map(p => p.method as CashAccount);
+        const anchoredAccounts = accountsAnchoredAfter(transactions, touched, txDate);
+        const anchoredItems = itemsAnchoredAfter(
+            transactions,
+            purchaseQueue.filter(p => p.tab === 'inventory' && p.itemId).map(p => ({ id: p.itemId!, name: p.itemName })),
+            txDate
+        );
+        if (anchoredAccounts.length > 0 || anchoredItems.length > 0) {
+            setBackdateWarning({
+                accounts: anchoredAccounts.map(account => ({
+                    account,
+                    auditDate: lastCashAuditFor(transactions, account)!.date
+                })),
+                items: anchoredItems.map(i => ({ name: i.name, countDate: i.countDate }))
+            });
             return;
         }
 
@@ -125,115 +267,100 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
 
     const executeSubmit = () => {
         setIsConfirming(false);
-        const freshAccounts = useStore.getState().accounts;
-
-        // NEW: Auto-create provider if typed but not selected
-        let finalProvId = form.provId;
-        if (!finalProvId && tempProvName.trim()) {
-            const existing = providers.find(p => normalizeName(p.name) === normalizeName(tempProvName));
-            if (existing) {
-                finalProvId = existing.id;
-            } else {
-                finalProvId = crypto.randomUUID();
-                addProvider({ id: finalProvId, name: tempProvName });
-            }
-        }
-
-        const quantity = parseFloat(form.quantity || '1');
-        const unitPrice = parseFloat(form.unitPrice || '0');
-        const amount = quantity * unitPrice;
-
-        if (amount <= 0 && tab === 'inventory') return; // Extra safety: prevent ₡0 spurious FIFO batches
 
         const prevLedger = { ...useStore.getState().accounts, ...getLedgerAccounts() }; // Capture snapshot (use getState() to avoid stale closure)
-        let newAccounts = freshAccounts;
-        let purchaseBatchId: string | undefined; // Captured so we can store it in the transaction
-        let purchasedAssetId: string | undefined; // Captured when buying an asset
-        if (tab === 'inventory') {
-            newAccounts = AccountingActions.purchaseInventory(freshAccounts, amount, form.method as any);
+        const txDate = buildBackdatedTimestamp(purchaseDate);
 
-            // Update Inventory Stock & Cost (FIFO Appending)
-            if (form.itemId && quantity > 0) {
-                const item = inventory.find(i => i.id === form.itemId);
-                if (item) {
-                    const newBatch = {
-                        id: crypto.randomUUID(),
-                        date: new Date().toISOString(),
-                        stock: quantity,
-                        cost: amount / quantity
-                    };
-                    purchaseBatchId = newBatch.id; // Capture for transaction details
+        let accState = { ...useStore.getState().accounts };
 
-                    const existingBatches = item.batches && item.batches.length > 0 ? [...item.batches] : [{
-                        id: 'legacy-' + crypto.randomUUID(),
-                        date: new Date(0).toISOString(),
-                        cost: item.cost,
-                        stock: item.stock
-                    }];
+        purchaseQueue.forEach(purchase => {
+            let purchaseBatchId: string | undefined; // Captured so we can store it in the transaction
+            let purchasedAssetId: string | undefined; // Captured when buying an asset
 
-                    const oldVal = item.cost * item.stock;
-                    const purchaseVal = amount; // Total spent
-                    const newStock = item.stock + quantity;
-                    const newAvgCost = (oldVal + purchaseVal) / newStock;
+            if (purchase.tab === 'inventory') {
+                accState = AccountingActions.purchaseInventory(accState, purchase.amount, purchase.method);
 
-                    updateInventoryItem(form.itemId, {
-                        stock: newStock,
-                        cost: newAvgCost,
-                        batches: [...existingBatches, newBatch]
+                // Update Inventory Stock & Cost (FIFO Appending).
+                // Re-read fresh each iteration: the queue can hold the same item twice.
+                if (purchase.itemId && purchase.quantity > 0) {
+                    const item = useStore.getState().inventory.find(i => i.id === purchase.itemId);
+                    if (item) {
+                        const newBatch = {
+                            id: crypto.randomUUID(),
+                            date: txDate, // batch date follows the tx date so FIFO/heal replay stay chronological
+                            stock: purchase.quantity,
+                            cost: purchase.amount / purchase.quantity
+                        };
+                        purchaseBatchId = newBatch.id; // Capture for transaction details
+
+                        const existingBatches = item.batches && item.batches.length > 0 ? [...item.batches] : [{
+                            id: 'legacy-' + crypto.randomUUID(),
+                            date: new Date(0).toISOString(),
+                            cost: item.cost,
+                            stock: item.stock
+                        }];
+
+                        const oldVal = item.cost * item.stock;
+                        const newStock = item.stock + purchase.quantity;
+                        const newAvgCost = (oldVal + purchase.amount) / newStock;
+
+                        updateInventoryItem(purchase.itemId, {
+                            stock: newStock,
+                            cost: newAvgCost,
+                            batches: [...existingBatches, newBatch]
+                        });
+                    }
+                }
+            } else {
+                accState = AccountingActions.purchaseAsset(accState, purchase.amount, purchase.method);
+
+                // Asset Logic: the asset UI is just a description, so each purchase
+                // line creates a NEW asset record.
+                if (purchase.quantity > 0) {
+                    purchasedAssetId = crypto.randomUUID();
+                    addAssetItem({
+                        id: purchasedAssetId,
+                        name: purchase.itemName,
+                        value: purchase.amount, // Total Value
+                        quantity: purchase.quantity
                     });
                 }
             }
-        } else {
-            newAccounts = AccountingActions.purchaseAsset(freshAccounts, amount, form.method as any);
 
-            // Asset Logic
-            if (quantity > 0) {
-                // Check if asset exists (simple check by name for now, or just always add new?)
-                // Simplification: Always add NEW asset record for each purchase batch, or grouping?
-                // Plan says: "Update Asset definition to include quantity".
-                // So we should see if we selected an existing Asset ID (not yet implemented in UI selector for Assets),
-                // OR create a new one.
-                // The currrent UI for Asset is just "Description" (Text Input).
-                // So we create a NEW Asset Item.
-                purchasedAssetId = crypto.randomUUID();
-                addAssetItem({
-                    id: purchasedAssetId,
-                    name: form.itemName,
-                    value: amount, // Total Value
-                    quantity: quantity
-                });
-            }
-        }
-
-        const targetProvider = providers?.find(p => p.id === (finalProvId || form.provId))?.name || tempProvName;
-
-        updateAccounts(() => newAccounts);
-        addTransaction({
-            id: crypto.randomUUID(), type: 'PURCHASE', date: new Date().toISOString(), amount,
-            description: `Compra ${tab === 'inventory' ? 'Inventario' : 'Activo'}: ${form.itemName} (x${formatQty(quantity)})`,
-            details: { itemId: form.itemId, itemName: form.itemName, batchId: purchaseBatchId, assetId: purchasedAssetId, quantity, method: form.method, type: tab, providerName: targetProvider }
+            // One PURCHASE transaction per line — keeps the single-item details
+            // schema that revertTransaction / deriveExpectedStocks consume.
+            addTransaction({
+                id: crypto.randomUUID(), type: 'PURCHASE', date: txDate, amount: purchase.amount,
+                description: `Compra ${purchase.tab === 'inventory' ? 'Inventario' : 'Activo'}: ${purchase.itemName} (x${formatQty(purchase.quantity)})`,
+                details: { itemId: purchase.itemId, itemName: purchase.itemName, batchId: purchaseBatchId, assetId: purchasedAssetId, quantity: purchase.quantity, method: purchase.method, type: purchase.tab, providerName: purchase.providerName }
+            });
         });
-        // reconcile AFTER the transaction is in the log — cash is derived from the ledger.
+
+        updateAccounts(() => accState);
+        // reconcile AFTER the transactions are in the log — cash is derived from the ledger.
         reconcile(); // derive cash, inventario, activo_fijo, patrimonio
 
         const freshState = useStore.getState();
         const currLedger = { ...freshState.accounts, ...freshState.getLedgerAccounts() };
 
         // Trigger Feedback instead of closing immediately
-        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Compraste: ${form.itemName} (x${formatQty(quantity)})` });
+        setFeedback({ isOpen: true, prev: prevLedger as any, curr: currLedger as any, description: `Se registraron ${purchaseQueue.length} compras. Total: ₡${formatMoney(totalQueueAmount)}` });
+        setPurchaseQueue([]);
         setForm({ itemId: '', itemName: '', unitPrice: '', quantity: '1', method: 'caja_chica', provId: '' });
         setTempProvName('');
+        setComboKey(k => k + 1);
     };
 
     const closeAll = () => {
         setFeedback({ isOpen: false, prev: null, curr: null, description: '' });
         setIsConfirming(false);
+        setPurchaseDate(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })); // reset to today
         onClose();
     };
 
     return (
         <>
-            <Modal isOpen={isOpen && !feedback.isOpen && !isConfirming} onClose={onClose} title="Registrar Compra">
+            <Modal isOpen={isOpen && !feedback.isOpen && !isConfirming && !backdateWarning} onClose={onClose} title="Registrar Compra">
                 {isCreating ? (
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
@@ -270,6 +397,7 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
                                 <div className="space-y-1">
                                     <label className="text-xs font-medium ml-1">Buscar Artículo</label>
                                     <Combobox
+                                        key={comboKey}
                                         items={inventory}
                                         placeholder="Buscar o crear artículo..."
                                         onSelect={(i: any) => setForm({ ...form, itemId: i.id, itemName: i.name })}
@@ -313,29 +441,97 @@ export const PurchaseModal = ({ isOpen, onClose }: any) => {
 
                         <PaymentMethod value={form.method} onChange={(m: any) => setForm({ ...form, method: m })} />
 
+                        {/* Date override — defaults to today, editable for backdated entries */}
+                        <div className="flex items-center gap-3 px-1">
+                            <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Fecha de la compra</label>
+                            <input
+                                type="date"
+                                value={purchaseDate}
+                                onChange={e => setPurchaseDate(e.target.value)}
+                                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-jardin-primary focus:border-transparent"
+                            />
+                        </div>
+
                         {(parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0')) === 0 && tab === 'asset' && (
                             <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-800 text-xs flex gap-2 items-center">
                                 <span>⚠️</span>
                                 <p><strong>Advertencia:</strong> Estás registrando un activo con valor ₡0. Esto sumará cantidad pero no afectará contablemente tu Activo Fijo.</p>
                             </div>
                         )}
-                        <Button className="w-full" onClick={handleSubmit}>Registrar {tab === 'asset' ? 'Activo' : 'Salida de Dinero'}</Button>
+
+                        <Button
+                            variant="outline"
+                            className="w-full border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100"
+                            onClick={handleAddToQueue}
+                            disabled={!form.itemName || (tab === 'inventory' && (parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0')) <= 0)}
+                        >
+                            <span className="font-bold">Añadir Compra a la Lista</span> (₡{formatMoney(Math.round(parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0')))})
+                        </Button>
+
+                        {purchaseQueue.length > 0 && (
+                            <>
+                                <hr className="my-4 border-gray-200" />
+                                <div className="bg-gray-100 p-2 rounded-xl border border-gray-200 max-h-[30vh] overflow-y-auto space-y-2">
+                                    <h4 className="text-xs font-bold text-gray-500 uppercase ml-2 mb-2">Compras Listas para Registrar ({purchaseQueue.length})</h4>
+                                    {purchaseQueue.map(p => (
+                                        <div key={p.id} className="flex items-center justify-between bg-white p-2 text-sm rounded shadow-sm border border-gray-100">
+                                            <div className="flex-1">
+                                                <div className="font-medium text-gray-800">{p.itemName} (x{formatQty(p.quantity)})</div>
+                                                <div className="text-[10px] text-gray-400">
+                                                    {p.tab === 'inventory' ? 'Inventario' : 'Activo Fijo'}{p.providerName ? ` · ${p.providerName}` : ''}
+                                                </div>
+                                            </div>
+                                            <div className="text-right mx-2">
+                                                <div className="font-bold text-jardin-primary">₡{formatMoney(p.amount)}</div>
+                                                <div className="text-[10px] text-gray-500 uppercase">{p.method === 'caja_chica' ? 'Caja Chica' : 'Banco'}</div>
+                                            </div>
+                                            <button onClick={() => handleRemoveFromQueue(p.id)} className="text-gray-400 hover:text-red-500 p-1">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <Button
+                                    className="w-full py-4 text-lg mt-4 shadow-xl"
+                                    onClick={handleSubmit}
+                                    disabled={purchaseQueue.length === 0}
+                                >
+                                    Registrar Todas ({purchaseQueue.length}) - ₡{formatMoney(totalQueueAmount)}
+                                </Button>
+                            </>
+                        )}
                     </div>
                 )}
             </Modal>
+
+            <BackdateWarningDialog
+                warning={backdateWarning}
+                onUseToday={() => {
+                    setPurchaseDate(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }));
+                    setBackdateWarning(null);
+                    setIsConfirming(true);
+                }}
+                onKeepDate={() => {
+                    setBackdateWarning(null);
+                    setIsConfirming(true);
+                }}
+                onClose={() => setBackdateWarning(null)}
+            />
 
             <ConfirmDialog
                 isOpen={isConfirming}
                 onClose={() => setIsConfirming(false)}
                 onConfirm={executeSubmit}
-                title="Confirmar Compra"
+                title="Confirmar Compras"
                 data={[
-                    { label: "Artículo", value: form.itemName },
-                    { label: "Cantidad", value: form.quantity },
-                    { label: "Precio Unitario", value: `₡${formatMoney(Math.round(parseFloat(form.unitPrice || '0')))}` },
-                    { label: "Precio Total", value: `₡${formatMoney(Math.round(parseFloat(form.quantity || '1') * parseFloat(form.unitPrice || '0')))}`, highlight: true },
-                    { label: "Método", value: form.method === 'caja_chica' ? 'Caja Chica' : 'Banco' },
-                    { label: "Proveedor", value: providers.find(p => p.id === form.provId)?.name || tempProvName || 'No especificado' }
+                    { label: "Total de Compras (Líneas)", value: purchaseQueue.length.toString() },
+                    ...purchaseQueue.map(p => ({
+                        label: `${p.itemName} (x${formatQty(p.quantity)})`,
+                        value: `₡${formatMoney(p.amount)} · ${p.method === 'caja_chica' ? 'Caja Chica' : 'Banco'}`
+                    })),
+                    { label: "Monto Total Global", value: `₡${formatMoney(totalQueueAmount)}`, highlight: true },
+                    { label: "Fecha", value: purchaseDate }
                 ]}
             />
 
@@ -381,7 +577,7 @@ interface QueuedSale {
 export const SaleModal = ({ isOpen, onClose }: any) => {
     const {
         updateAccounts, reconcile, addTransaction,
-        products, addProduct, getLedgerAccounts
+        products, addProduct, locations, getLedgerAccounts
     } = useStore();
 
     // Cart State: price is string to allow editing "500" -> "" -> "450"
@@ -393,14 +589,42 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
     const [splitBank, setSplitBank] = useState('');
     const [salesQueue, setSalesQueue] = useState<QueuedSale[]>([]);
     const [saleDate, setSaleDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }));
+    const [backdateWarning, setBackdateWarning] = useState<BackdateWarning | null>(null);
     const [feedback, setFeedback] = useState<{ isOpen: boolean, prev: any, curr: any, description?: string }>({ isOpen: false, prev: null, curr: null });
 
+    // New-product sub-dialog (name + price + bodega)
+    const [isCreatingProd, setIsCreatingProd] = useState(false);
+    const [newProd, setNewProd] = useState({ name: '', price: '', locationId: '' });
+    const [prodError, setProdError] = useState<string | null>(null);
+
     const handleCreateProd = (name: string) => {
+        // Reuse an existing product (case-insensitive) instead of duplicating
+        const existing = products.find(p => normalizeName(p.name) === normalizeName(name));
+        if (existing) {
+            addToCart(existing);
+            setTypedProductName('');
+            return;
+        }
+        // Intercept: don't create yet. Open sub-dialog to pick price + bodega.
+        setNewProd({ name, price: '', locationId: '' });
+        setProdError(null);
+        setIsCreatingProd(true);
+    };
+
+    const confirmCreateProd = () => {
+        const trimmedName = newProd.name.trim();
+        if (!trimmedName) return;
+        if (products.some(p => normalizeName(p.name) === normalizeName(trimmedName))) {
+            setProdError('Ese producto ya existe en el catálogo.');
+            return;
+        }
         const id = crypto.randomUUID();
-        const newProd = { id, name, price: 0 };
-        addProduct(newProd);
-        addToCart(newProd); // Add immediately
+        const prod = { id, name: trimmedName, price: parseFloat(newProd.price || '0'), locationId: newProd.locationId || undefined };
+        addProduct(prod);
+        addToCart(prod); // Add immediately
         setTypedProductName(''); // Prevent duplicate on next "Cobrar" click
+        setIsCreatingProd(false);
+        setNewProd({ name: '', price: '', locationId: '' });
     };
 
     const addToCart = (product: any) => {
@@ -462,6 +686,25 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 
     const handleSubmit = () => {
         if (salesQueue.length === 0) return;
+
+        // Backdate guard: a sale dated before the latest cash audit of any
+        // account it touches gets absorbed by the audit's SET (lessons.md).
+        const transactions = useStore.getState().transactions;
+        const txDate = buildBackdatedTimestamp(saleDate);
+        const touched = salesQueue.flatMap<CashAccount>(s =>
+            s.method === 'split' ? ['caja_chica', 'banco'] : [s.method as CashAccount]
+        );
+        const anchored = accountsAnchoredAfter(transactions, touched, txDate);
+        if (anchored.length > 0) {
+            setBackdateWarning({
+                accounts: anchored.map(account => ({
+                    account,
+                    auditDate: lastCashAuditFor(transactions, account)!.date
+                }))
+            });
+            return;
+        }
+
         setIsConfirming(true);
     };
 
@@ -478,9 +721,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
             const desc = sale.cart.map(i => `${i.name} (x${formatQty(i.qty)})`).join(', ');
 
             // Build transaction date: use user-selected date but current time-of-day
-            const [y, m, d] = saleDate.split('-').map(Number);
-            const now = new Date();
-            const txDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+            const txDate = buildBackdatedTimestamp(saleDate);
 
             addTransaction({
                 id: crypto.randomUUID(),
@@ -516,7 +757,50 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
 
     return (
         <>
-            <Modal isOpen={isOpen && !feedback.isOpen && !isConfirming} onClose={onClose} title="Registrar Venta">
+            <Modal isOpen={isOpen && !feedback.isOpen && !isConfirming && !backdateWarning} onClose={onClose} title="Registrar Venta">
+                {isCreatingProd ? (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <h3 className="font-bold text-blue-900 mb-2">Nuevo Producto de Venta</h3>
+                        <p className="text-xs text-blue-700 mb-4">Defina el precio sugerido y la bodega donde se ubica.</p>
+
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Nombre del Producto</label>
+                                <Input value={newProd.name} onChange={e => setNewProd({ ...newProd, name: e.target.value })} placeholder="Ej: Casado Pollo" autoFocus />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Precio de Venta (Opcional)</label>
+                                <Input type="number" value={newProd.price} onChange={e => setNewProd({ ...newProd, price: e.target.value })} placeholder="0" />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Bodega</label>
+                                <select
+                                    className="w-full h-12 px-3 border border-gray-200 rounded-xl bg-white text-sm outline-none focus:border-jardin-primary"
+                                    value={newProd.locationId}
+                                    onChange={e => setNewProd({ ...newProd, locationId: e.target.value })}
+                                >
+                                    <option value="">Bodega Ppal</option>
+                                    {locations.filter(l => !l.hidden).map(l => (
+                                        <option key={l.id} value={l.id}>{l.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {prodError && (
+                                <p className="text-xs font-medium text-red-600">{prodError}</p>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2 mt-4">
+                            <Button variant="ghost" onClick={() => setIsCreatingProd(false)}>Cancelar</Button>
+                            <Button className="flex-1" onClick={confirmCreateProd}>Confirmar Creación</Button>
+                        </div>
+                    </div>
+                </div>
+                ) : (
                 <div className="space-y-4">
                     {/* Product Search / Add */}
                     <div className="space-y-1">
@@ -657,7 +941,22 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                         </>
                     )}
                 </div>
+                )}
             </Modal>
+
+            <BackdateWarningDialog
+                warning={backdateWarning}
+                onUseToday={() => {
+                    setSaleDate(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' }));
+                    setBackdateWarning(null);
+                    setIsConfirming(true);
+                }}
+                onKeepDate={() => {
+                    setBackdateWarning(null);
+                    setIsConfirming(true);
+                }}
+                onClose={() => setBackdateWarning(null)}
+            />
 
             <ConfirmDialog
                 isOpen={isConfirming}
@@ -667,6 +966,7 @@ export const SaleModal = ({ isOpen, onClose }: any) => {
                 data={[
                     { label: "Total de Ventas (Tickets)", value: salesQueue.length.toString() },
                     { label: "Monto Total Global", value: `₡${formatMoney(totalQueueAmount)}`, highlight: true },
+                    { label: "Fecha", value: saleDate },
                     { label: "Desglose", value: "Asegúrate de haber ingresado todas tus ventas." }
                 ]}
             />

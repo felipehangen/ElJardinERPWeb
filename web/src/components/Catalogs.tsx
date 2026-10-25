@@ -17,7 +17,7 @@ export const Catalogs = () => {
 
     // Forms
     const [invForm, setInvForm] = useState({ name: '', cost: '', locationId: '' });
-    const [prodForm, setProdForm] = useState({ name: '', price: '' });
+    const [prodForm, setProdForm] = useState({ name: '', price: '', locationId: '' });
     const [provForm, setProvForm] = useState('');
     const [ubiForm, setUbiForm] = useState('');
     const [expForm, setExpForm] = useState('');
@@ -245,18 +245,28 @@ export const Catalogs = () => {
                         <div className="space-y-4">
                             <Card>
                                 <h3 className="font-bold mb-4">Nuevo Producto</h3>
-                                <div className="flex gap-4">
+                                <div className="flex flex-wrap sm:flex-nowrap gap-4">
                                     <Input placeholder="Nombre (ej: Casado Pollo)" value={prodForm.name} onChange={e => setProdForm({ ...prodForm, name: e.target.value })} />
-                                    <Input type="number" placeholder="Precio Venta" className="w-40" value={prodForm.price} onChange={e => setProdForm({ ...prodForm, price: e.target.value })} />
-                                    <Button onClick={() => {
+                                    <Input type="number" placeholder="Precio Venta" className="w-40 shrink-0" value={prodForm.price} onChange={e => setProdForm({ ...prodForm, price: e.target.value })} />
+                                    <select
+                                        className="h-12 px-3 border border-gray-200 rounded-xl bg-white text-sm outline-none focus:border-jardin-primary shrink-0 min-w-[120px]"
+                                        value={prodForm.locationId}
+                                        onChange={e => setProdForm({ ...prodForm, locationId: e.target.value })}
+                                    >
+                                        <option value="">Bodega Ppal</option>
+                                        {locations.filter(l => !l.hidden).map(l => (
+                                            <option key={l.id} value={l.id}>{l.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button className="shrink-0" onClick={() => {
                                         if (!prodForm.name || !prodForm.price) return;
                                         const trimmedName = prodForm.name.trim();
                                         if (products.some(p => normalizeName(p.name) === normalizeName(trimmedName))) {
                                             setDuplicateError('Ese producto de venta ya existe.');
                                             return;
                                         }
-                                        addProduct({ id: crypto.randomUUID(), name: trimmedName, price: parseFloat(prodForm.price || '0') });
-                                        setProdForm({ name: '', price: '' });
+                                        addProduct({ id: crypto.randomUUID(), name: trimmedName, price: parseFloat(prodForm.price || '0'), locationId: prodForm.locationId || undefined });
+                                        setProdForm({ name: '', price: '', locationId: '' });
                                     }}><Plus size={20} /></Button>
                                 </div>
                             </Card>
@@ -268,6 +278,14 @@ export const Catalogs = () => {
                                     <div key={i.id} className="p-4 flex flex-wrap justify-between items-start gap-y-1 text-sm">
                                         <input value={i.name} onChange={e => updateProduct(i.id, { name: e.target.value })} className="font-medium bg-transparent focus:underline outline-none min-w-0 flex-1 break-words" />
                                         <div className="flex items-center gap-2 shrink-0">
+                                            <select
+                                                className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-jardin-primary"
+                                                value={i.locationId || ''}
+                                                onChange={e => updateProduct(i.id, { locationId: e.target.value || undefined })}
+                                            >
+                                                <option value="">Bodega Ppal</option>
+                                                {locations.filter(l => !l.hidden).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                            </select>
                                             <span className="text-xs text-gray-400">₡</span>
                                             <input
                                                 type="number"

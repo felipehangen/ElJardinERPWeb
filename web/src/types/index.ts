@@ -57,6 +57,7 @@ export interface Product {
     name: string;
     price: number;
     inventoryItemId?: string; // If linked to an inventory item (e.g. 1 Coca Cola)
+    locationId?: string; // Bodega/ubicación donde se vende o almacena el producto
     hidden?: boolean;
 }
 
